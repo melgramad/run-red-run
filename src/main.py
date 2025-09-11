@@ -11,7 +11,7 @@ screen = pygame.display.set_mode((500,700))
 pygame.display.set_caption("Pygame Test")
 
 ## Background Fill to white
-screen.fill((255,200,200))
+screen.fill((255,255,255))
 pygame.display.flip()
 
 # Main loop to keep the window open and responsive
