@@ -8,7 +8,7 @@ pygame.init()
 ## Set up a window
 
 screen = pygame.display.set_mode((500,700))
-pygame.display.set_caption("Pygame Test")
+pygame.display.set_caption(" Test")
 
 ## Background Fill to white
 screen.fill((255,255,255))
@@ -24,6 +24,6 @@ while running:
 
 pygame.quit()
 
-print("Pygame is working!")
+print(" is working!")
 
 
