@@ -24,6 +24,6 @@ while running:
 
 pygame.quit()
 
-print(" is working!")
+print("Pygame is working!")
 
 
