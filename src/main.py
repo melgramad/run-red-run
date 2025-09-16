@@ -26,6 +26,8 @@ pygame.quit()
 
 print(" is working!")
 
+print("is it working")
+
 
 
 
