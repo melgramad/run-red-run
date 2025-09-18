@@ -1,0 +1,55 @@
+import sys
+from pathlib import Path
+import pygame
+
+pygame.init()
+
+# Paths
+ROOT = Path(__file__).resolve().parent.parent
+ASSETS = ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img" / "Background"
+
+# Asset files
+SKY = ASSETS / "sky_cloud.png"
+MOUNTAIN = ASSETS / "mountain.png"
+PINE1 = ASSETS / "pine1.png"
+PINE2 = ASSETS / "pine2.png"
+
+# Check that assets exist
+for asset in [SKY, MOUNTAIN, PINE1, PINE2]:
+    if not asset.is_file():
+        raise FileNotFoundError(f"Missing asset: {asset} (does it exist and match case?)")
+
+# Screen setup
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 640
+LOWER_MARGIN = 100
+SIDE_MARGIN = 300
+
+screen = pygame.display.set_mode((SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN))
+pygame.display.set_caption("Level Editor")
+
+# Load images
+sky_img = pygame.image.load(str(SKY)).convert_alpha()
+mountain_img = pygame.image.load(str(MOUNTAIN)).convert_alpha()
+pine1_img = pygame.image.load(str(PINE1)).convert_alpha()
+pine2_img = pygame.image.load(str(PINE2)).convert_alpha()
+
+# Draw background function
+def draw_bg():
+    screen.blit(sky_img, (0, 0))
+    screen.blit(mountain_img, (0, SCREEN_HEIGHT - mountain_img.get_height() - 200))
+    screen.blit(pine2_img, (0, SCREEN_HEIGHT - pine2_img.get_height() - 100))
+    screen.blit(pine1_img, (0, SCREEN_HEIGHT - pine1_img.get_height()))
+
+# Game loop
+run = True
+while run:
+    draw_bg()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+    pygame.display.update()
+
+pygame.quit()
