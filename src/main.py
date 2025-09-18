@@ -1,7 +1,16 @@
-
+import sys
+from pathlib import Path
 import pygame
 
 pygame.init()
+
+
+ROOT = Path(__file__).resolve().parent.parent
+ASSETS = ROOT / "assets"
+LOGO = ASSETS / "standing.png"
+
+if not LOGO.is_file():
+    raise FileNotFoundError(f"Missing asset: {LOGO} (does it exist and match case?)")
 
 # Set up a window
 SCREEN_WIDTH = 800
@@ -13,7 +22,7 @@ pygame.display.set_caption("Run Red, Run!")
 class Character(pygame.sprite.Sprite):
     def __init__(self, x, y, scale):
         pygame.sprite.Sprite.__init__(self)
-        img = pygame.image.load("orgsOfLangs/run-red-run/assets/standing.png")
+        img = pygame.image.load(str(LOGO)).convert_alpha()
         self.image = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
         self.rect = self.image.get_rect()#Controlling positions and collisions
         self.rect.center = (x, y)
@@ -37,7 +46,10 @@ scale = 1
 run = True
 while run:
 
+    screen.fill((30,30,30))
     player.draw()
+    pygame.display.flip()
+    
    
 
     for event in pygame.event.get():
