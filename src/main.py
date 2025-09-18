@@ -25,6 +25,7 @@ class Character(pygame.sprite.Sprite):
 
 player = Character(200,200, 1)
 
+
         
 x = 200
 y = 200
@@ -37,6 +38,7 @@ run = True
 while run:
 
     player.draw()
+   
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
