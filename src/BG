@@ -5,6 +5,9 @@ import json
 
 pygame.init()
 
+SHARED_FOLDER = Path ("C:/Dev/run-red-run")
+LEVEL_FILE = SHARED_FOLDER / "level.json"
+
 clock = pygame.time.Clock()
 FPS = 60
 
@@ -27,6 +30,9 @@ PINE2 = BG_ASSETS / "pine2.png"
 # Save/Load buttons 
 SAVE_BTN = ASSETS / "save_btn.png"
 LOAD_BTN = ASSETS / "load_btn.png"
+
+#level file path
+LEVEL_FILE = ROOT / "level.json"
 
 # Screen setup
 SCREEN_WIDTH = 800
@@ -210,38 +216,34 @@ while run:
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
 
-            # Left click
+            # Left-click
             if event.button == 1:
-                # Select tile
+                # Select a tile from palette
                 for button in tile_buttons:
                     if button.is_clicked(mouse_pos):
                         selected_tile_index = button.index
 
-                # Place tile
+                # Place a tile on the grid
                 if selected_tile_index is not None and mouse_pos[0] < SCREEN_WIDTH:
                     grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
                     grid_y = mouse_pos[1] // TILE_SIZE
                     placed_tiles.append((selected_tile_index, grid_x, grid_y))
 
-                # Save
+                # Save button
                 if save_button.is_clicked(mouse_pos):
-                    with open("level.json", "w") as f:
+                    with open(LEVEL_FILE, "w") as f:
                         json.dump(placed_tiles, f)
-                    print("Level saved!")
 
-                # Load
-                if load_button.is_clicked(mouse_pos):
-                    try:
-                        with open("level.json", "r") as f:
+                # Load button
+                elif load_button.is_clicked(mouse_pos):
+                    if LEVEL_FILE.is_file():
+                        with open(LEVEL_FILE, "r") as f:
                             loaded_tiles = json.load(f)
-                            placed_tiles.clear()
+                            placed_tiles.clear()  # clear old tiles
                             for item in loaded_tiles:
-                                placed_tiles.append(tuple(item))
-                        print("Level loaded!")
-                    except FileNotFoundError:
-                        print("No saved level found.")
+                                placed_tiles.append(tuple(item))  # restore as tuple
 
-            # Right click: delete tile
+            # Right-click: remove a tile
             if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
                 grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
                 grid_y = mouse_pos[1] // TILE_SIZE
@@ -249,6 +251,7 @@ while run:
                     (t_index, x, y) for t_index, x, y in placed_tiles
                     if not (x == grid_x and y == grid_y)
                 ]
+
 
     pygame.display.update()
 
