@@ -24,7 +24,7 @@ MOUNTAIN = BG_ASSETS / "mountain.png"
 PINE1 = BG_ASSETS / "pine1.png"
 PINE2 = BG_ASSETS / "pine2.png"
 
-# Save/Load buttons (directly in img folder)
+# Save/Load buttons 
 SAVE_BTN = ASSETS / "save_btn.png"
 LOAD_BTN = ASSETS / "load_btn.png"
 
@@ -69,13 +69,13 @@ for x in range(TILE_TYPES):
     img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
     img_list.append(img)
 
-# Load Save/Load buttons
+# Save/Load buttons
 save_btn_img = pygame.image.load(str(SAVE_BTN)).convert_alpha()
 save_btn_img = pygame.transform.scale(save_btn_img, (100, 50))
 load_btn_img = pygame.image.load(str(LOAD_BTN)).convert_alpha()
 load_btn_img = pygame.transform.scale(load_btn_img, (100, 50))
 
-# ===================== CLASSES =====================
+
 class TileButton:
     def __init__(self, image, x, y, size, index):
         self.image = pygame.transform.scale(image, (size, size))
@@ -101,7 +101,7 @@ class Button:
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
-# ===================== TILE PALETTE 4x5 =====================
+
 tile_buttons = []
 button_size = 50
 padding = 10
@@ -117,14 +117,13 @@ for i, img in enumerate(img_list):
 
 selected_tile_index = None
 
-# Placed tiles as (tile_index, grid_x, grid_y)
 placed_tiles = []
 
 # Save/Load buttons
 save_button = Button(save_btn_img, SCREEN_WIDTH + 50, SCREEN_HEIGHT - 150)
 load_button = Button(load_btn_img, SCREEN_WIDTH + 50, SCREEN_HEIGHT - 80)
 
-# ===================== DRAW FUNCTIONS =====================
+#Background layout and scroll speed
 def draw_bg():
     for i in range(3):  # repeat background
         offset_x = (i * sky_img.get_width()) - scroll
@@ -152,7 +151,7 @@ def draw_grid():
             screen, WHITE, (0, r * TILE_SIZE), (SCREEN_WIDTH, r * TILE_SIZE)
         )
 
-# ===================== MAIN LOOP =====================
+#main
 run = True
 while run:
     clock.tick(FPS)
