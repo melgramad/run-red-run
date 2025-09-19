@@ -28,27 +28,64 @@ SIDE_MARGIN = 300
 screen = pygame.display.set_mode((SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN))
 pygame.display.set_caption("Level Editor")
 
+
+# define game variables
+scroll_left = False
+scroll_right = False
+scroll = 0
+scroll_speed = 5
+
+
+
 # Load images
 sky_img = pygame.image.load(str(SKY)).convert_alpha()
 mountain_img = pygame.image.load(str(MOUNTAIN)).convert_alpha()
 pine1_img = pygame.image.load(str(PINE1)).convert_alpha()
 pine2_img = pygame.image.load(str(PINE2)).convert_alpha()
 
+REPEATS = 3
+
+max_scroll = (sky_img.get_width() * REPEATS) - SCREEN_WIDTH
+
+
 # Draw background function
+
 def draw_bg():
-    screen.blit(sky_img, (0, 0))
-    screen.blit(mountain_img, (0, SCREEN_HEIGHT - mountain_img.get_height() - 200))
-    screen.blit(pine2_img, (0, SCREEN_HEIGHT - pine2_img.get_height() - 100))
-    screen.blit(pine1_img, (0, SCREEN_HEIGHT - pine1_img.get_height()))
+    for i in range(REPEATS):
+        offset_x = (i * sky_img.get_width()) - scroll
+        screen.blit(sky_img, (offset_x, 0))
+        screen.blit(mountain_img, (offset_x, SCREEN_HEIGHT - mountain_img.get_height() - 200))
+        screen.blit(pine2_img, (offset_x, SCREEN_HEIGHT - pine2_img.get_height() - 100))
+        screen.blit(pine1_img, (offset_x, SCREEN_HEIGHT - pine1_img.get_height()))
+
 
 # Game loop
 run = True
 while run:
+    screen.fill((0, 0, 0))  # clear screen each frame
     draw_bg()
+
+    # scroll the map
+    if scroll_left:
+        scroll -= scroll_speed
+    if scroll_right:
+        scroll += scroll_speed
+
+    scroll = max(0, min (scroll, max_scroll))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                scroll_left = True
+            if event.key == pygame.K_RIGHT:
+                scroll_right = True
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_LEFT:
+                scroll_left = False
+            if event.key == pygame.K_RIGHT:
+                scroll_right = False
 
     pygame.display.update()
 
