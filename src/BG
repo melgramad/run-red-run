@@ -4,6 +4,9 @@ import pygame
 
 pygame.init()
 
+clock = pygame.time.Clock()
+FPS = 60
+
 # Paths
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img" / "Background"
@@ -53,15 +56,20 @@ max_scroll = (sky_img.get_width() * REPEATS) - SCREEN_WIDTH
 def draw_bg():
     for i in range(REPEATS):
         offset_x = (i * sky_img.get_width()) - scroll
-        screen.blit(sky_img, (offset_x, 0))
-        screen.blit(mountain_img, (offset_x, SCREEN_HEIGHT - mountain_img.get_height() - 200))
-        screen.blit(pine2_img, (offset_x, SCREEN_HEIGHT - pine2_img.get_height() - 100))
-        screen.blit(pine1_img, (offset_x, SCREEN_HEIGHT - pine1_img.get_height()))
+        screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
+        screen.blit(mountain_img, (offset_x - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 260))
+        screen.blit(pine1_img, (offset_x - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100))
+        screen.blit(pine2_img, (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() - -20))
+        
+
 
 
 # Game loop
 run = True
 while run:
+
+    clock.tick(FPS)
+
     screen.fill((0, 0, 0))  # clear screen each frame
     draw_bg()
 
@@ -76,11 +84,14 @@ while run:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+
+        #Keyboard presses    
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT:
                 scroll_left = True
             if event.key == pygame.K_RIGHT:
                 scroll_right = True
+                
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT:
                 scroll_left = False
