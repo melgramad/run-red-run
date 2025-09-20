@@ -64,7 +64,7 @@ player = Player(
     PLAYER_IDLE_FRAMES, PLAYER_RUN,
     x=320, baseline_y=settings.BASELINE_Y,
     foot_offset=settings.PLAYER_FOOT_OFFSET,
-    speed=5, anim_fps=8
+    speed=5, anim_fps=10
 )
 wolf = WolfStatic(
     WOLF_RUN, WOLF_IDLE,
@@ -93,7 +93,7 @@ menu_red = IdleBreather(
     PLAYER_IDLE_FRAMES,
     x=settings.SCREEN_WIDTH // 2,
     baseline_y=exit_rect.bottom + 140,
-    anim_fps=8
+    anim_fps=10
 )
 
 moving_left = moving_right = False
