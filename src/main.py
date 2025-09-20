@@ -61,7 +61,7 @@ menu_red = IdleBreather(
     PLAYER_IDLE_FRAMES,
     x=settings.SCREEN_WIDTH // 2,
     baseline_y=exit_rect.bottom + 140,
-    anim_fps=10
+    anim_fps=8
 )
 
 moving_left = moving_right = False

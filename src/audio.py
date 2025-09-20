@@ -10,13 +10,13 @@ def init_audio():
     if not pygame.mixer.get_init():
         pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 
-def play_menu_music(start_at=0.0):
+def play_menu_music(start_at=3.0):
     if MENU_MUSIC.is_file():
         pygame.mixer.music.load(str(MENU_MUSIC))
         pygame.mixer.music.set_volume(MENU_VOLUME)
         pygame.mixer.music.play(-1, start_at)
 
-def play_game_music(start_at=0.0):
+def play_game_music(start_at=3.0):
     if GAME_MUSIC.is_file():
         pygame.mixer.music.load(str(GAME_MUSIC))
         pygame.mixer.music.set_volume(GAME_VOLUME)
