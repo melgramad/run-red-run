@@ -8,7 +8,7 @@ GAME_BG = (30, 30, 30)
 MENU_BG = (16, 2, 4)  # deep, nearly-black crimson
 
 # Physics & layout
-GRAVITY = 0.75
+GRAVITY = 0.45
 JUMP_POWER = 11
 BASELINE_Y = SCREEN_HEIGHT // 2
 PLAYER_FOOT_OFFSET = 50
