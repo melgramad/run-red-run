@@ -10,11 +10,10 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Run Red, Run!")
 clock = pygame.time.Clock()
 FPS = 60
+
 # ---------- COLORS ----------
 GAME_BG  = (30, 30, 30)         # current gameplay background
 MENU_BG  = (16, 2, 4)           # deep dark crimson (almost black)
-
-
 
 # ---------- PHYSICS / LAYOUT ----------
 GRAVITY = 0.75          # px/frame^2
@@ -26,6 +25,13 @@ WOLF_FOOT_OFFSET   = 0                # tweak if Wolf's feet look high/low
 # ---------- PATHS ----------
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"              # put all images here
+
+# ---- AUDIO (super simple) ----
+import pygame.mixer  # already part of pygame, just being explicit
+pygame.mixer.init()  # must be before we load/play
+
+MENU_MUSIC = ASSETS / "Video-Project.ogg"  # <- your menu file in assets
+GAME_MUSIC = ASSETS / "game_loop.ogg"      # <- optional game track (add this file later)
 
 # ---------- HELPERS ----------
 def load_frames(paths, scale=3.0):
@@ -216,6 +222,13 @@ player.x = player.rect.midbottom[0]  # keep x in sync after manual placement
 
 # ---------- MENU SETUP ----------
 state = "menu"  # 'menu' -> 'game'
+
+# start menu music
+if MENU_MUSIC.is_file():
+    pygame.mixer.music.load(str(MENU_MUSIC))
+    pygame.mixer.music.set_volume(0.6)   # tweak to taste
+    pygame.mixer.music.play(-1)          # loop forever
+
 title_surf = TITLE_FONT.render("Run Red, Run!", True, (230, 230, 230))
 
 btn_w, btn_h = 240, 56
@@ -244,6 +257,13 @@ while True:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if start_rect.collidepoint(event.pos):
                     state = "game"
+                    # --- swap to game music (or fade out if missing) ---
+                    if GAME_MUSIC.is_file():
+                        pygame.mixer.music.load(str(GAME_MUSIC))
+                        pygame.mixer.music.set_volume(0.6)
+                        pygame.mixer.music.play(-1, 0.0, fade_ms=600)
+                    else:
+                        pygame.mixer.music.fadeout(500)
                 elif exit_rect.collidepoint(event.pos):
                     pygame.quit(); raise SystemExit
         else:  # gameplay
@@ -263,7 +283,6 @@ while True:
         screen.fill(MENU_BG)
     else:
         screen.fill(GAME_BG)
-
 
     if state == "menu":
         screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//6)))
