@@ -1,4 +1,6 @@
 # settings.py
+from pathlib import Path
+
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 FPS = 60
@@ -6,6 +8,10 @@ FPS = 60
 # Colors
 GAME_BG = (30, 30, 30)
 MENU_BG = (16, 2, 4)  # deep, nearly-black crimson
+
+# Root of your asset tree (adjust to your layout)
+PROJECT_ROOT = Path(__file__).resolve().parent
+ASSETS_ROOT  = PROJECT_ROOT / "assets"
 
 # Physics & layout
 GRAVITY = 0.45
