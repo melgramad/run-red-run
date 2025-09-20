@@ -1,0 +1,22 @@
+# settings.py
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
+FPS = 60
+
+# Colors
+GAME_BG = (30, 30, 30)
+MENU_BG = (16, 2, 4)  # deep, nearly-black crimson
+
+# Physics & layout
+GRAVITY = 0.75
+JUMP_POWER = 11
+BASELINE_Y = SCREEN_HEIGHT // 2
+PLAYER_FOOT_OFFSET = 40
+WOLF_FOOT_OFFSET = 0
+WOLF_EDGE_X = 8
+STARTING_GAP = 220
+
+# Audio
+MENU_VOLUME = 0.6
+GAME_VOLUME = 0.6
+
