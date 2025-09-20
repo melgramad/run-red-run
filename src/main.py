@@ -14,11 +14,45 @@ screen = pygame.display.set_mode((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
 pygame.display.set_caption("Run Red, Run!")
 clock = pygame.time.Clock()
 
+# ---------- FRAME NORMALIZER ----------
+def normalize_frames(frames, anchor="midbottom"):
+    """Pad frames to uniform size and keep a common anchor point stable."""
+    if not frames:
+        return frames
+    max_w = max(f.get_width()  for f in frames)
+    max_h = max(f.get_height() for f in frames)
+    norm = []
+    for f in frames:
+        r = f.get_rect()
+        if   anchor == "midbottom": an = r.midbottom
+        elif anchor == "midtop":    an = r.midtop
+        elif anchor == "midleft":   an = r.midleft
+        elif anchor == "midright":  an = r.midright
+        elif anchor == "center":    an = r.center
+        else:                       an = r.midbottom
+        canvas = pygame.Surface((max_w, max_h), pygame.SRCALPHA, 32).convert_alpha()
+        dst_r = canvas.get_rect()
+        if   anchor == "midbottom": dst_anchor = dst_r.midbottom
+        elif anchor == "midtop":    dst_anchor = dst_r.midtop
+        elif anchor == "midleft":   dst_anchor = dst_r.midleft
+        elif anchor == "midright":  dst_anchor = dst_r.midright
+        elif anchor == "center":    dst_anchor = dst_r.center
+        else:                       dst_anchor = dst_r.midbottom
+        ox = dst_anchor[0] - an[0]
+        oy = dst_anchor[1] - an[1]
+        canvas.blit(f, (ox, oy))
+        norm.append(canvas)
+    return norm
+
 # ---------- ART ----------
 PLAYER_IDLE_FRAMES = load_numbered("red_idle_", 1 , 8, scale=2.0)
 PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)  # adjust 23 if needed
 WOLF_IDLE          = load_frames([ASSETS / "wolf_stand_1.png"], scale=1.5)[0]
 WOLF_RUN           = load_numbered("wolf_run_", 1, 9, scale=1.5)
+
+# Normalize idle and running frames so the feet stay anchored
+PLAYER_IDLE_FRAMES = normalize_frames(PLAYER_IDLE_FRAMES, anchor="midbottom")
+PLAYER_RUN         = normalize_frames(PLAYER_RUN,         anchor="midbottom")
 
 # verify frame counts at startup
 print("Frames -> idle:", len(PLAYER_IDLE_FRAMES),
