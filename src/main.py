@@ -259,7 +259,11 @@ while True:
                 elif event.key == pygame.K_d: moving_right = False
 
     # ---------- UPDATE & DRAW ----------
-    screen.fill((30, 30, 30))
+    if state == "menu":
+        screen.fill(MENU_BG)
+    else:
+        screen.fill(GAME_BG)
+
 
     if state == "menu":
         screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//6)))
