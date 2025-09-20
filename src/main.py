@@ -21,6 +21,12 @@ PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)  # adjust 23 i
 WOLF_IDLE          = load_frames([ASSETS / "wolf_stand_1.png"], scale=1.5)[0]
 WOLF_RUN           = load_numbered("wolf_run_", 1, 9, scale=1.5)
 
+#verify frame counts at startup
+print("Frames -> idle:", len(PLAYER_IDLE_FRAMES),
+      " run:", len(PLAYER_RUN),
+      " wolf_run:", len(WOLF_RUN))
+
+
 # ---------- ENTITIES ----------
 player = Player(
     PLAYER_IDLE_FRAMES, PLAYER_RUN,

@@ -1,15 +1,22 @@
-# entities.py
+#entities.py
 import pygame
 import settings
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, idle_frames, run_frames, x, baseline_y,
                  foot_offset=0, speed=5, anim_fps=12):
         super().__init__()
-        self.idle_frames = idle_frames
-        self.run_frames  = run_frames
+        self.idle_frames = idle_frames or []
+        self.run_frames  = run_frames or []
         self.frame_index = 0
-        self.image = self.idle_frames[0]
+
+        # pick a sane first image even if lists are empty
+        first_img = (self.idle_frames[0] if self.idle_frames
+                     else self.run_frames[0] if self.run_frames
+                     else pygame.Surface((1, 1), pygame.SRCALPHA))
+
+        self.image = first_img
         self.rect  = self.image.get_rect()
 
         # baseline for feet
@@ -33,11 +40,13 @@ class Player(pygame.sprite.Sprite):
             self.vel_y = -self.jump_power
             self.airborne = True
 
-    def move_and_animate(self, dx):
+    def move_and_animate(self, dx: float):
+        # ---- horizontal movement ----
         self.x += dx
         if dx != 0:
             self.flip = dx < 0
 
+        # ---- vertical physics ----
         self.vel_y += settings.GRAVITY
         self.y += self.vel_y
         if self.y >= self.baseline_y:
@@ -45,32 +54,51 @@ class Player(pygame.sprite.Sprite):
             self.vel_y = 0
             self.airborne = False
 
+        # ---- choose animation sequence ----
         seq = self.run_frames if (dx != 0 or self.airborne) else self.idle_frames
+        if not seq:
+            # nothing to animate; just keep position/rect updated
+            left = self.rect.left
+            self.rect = self.image.get_rect()
+            self.rect.left = left
+            self.rect.midbottom = (int(self.x), int(self.y))
+            return
 
+        # ---- advance frame safely ----
         now = pygame.time.get_ticks()
         if now - self._last_update >= self.frame_time_ms:
             self._last_update = now
             self.frame_index = (self.frame_index + 1) % len(seq)
+        else:
+            # defensive clamp in case list length changed
+            self.frame_index %= len(seq)
+
         self.image = seq[self.frame_index]
 
+        # keep feet pinned after sprite size swap
         left = self.rect.left
         self.rect = self.image.get_rect()
         self.rect.left = left
         self.rect.midbottom = (int(self.x), int(self.y))
 
-    def draw(self, surf):
+    def draw(self, surf: pygame.Surface):
         surf.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+
 
 class WolfStatic(pygame.sprite.Sprite):
     """Wolf pinned to the left edge; runs only when running=True; else idle."""
     def __init__(self, run_frames, idle_img, left_x, baseline_y,
                  foot_offset=0, anim_fps=12, flip=False):
         super().__init__()
-        self.frames = run_frames
+        self.frames = run_frames or []
         self.idle_img = idle_img
         self.frame_index = 0
-        self.image = self.idle_img
+
+        self.image = self.idle_img if self.idle_img is not None else (
+            self.frames[0] if self.frames else pygame.Surface((1, 1), pygame.SRCALPHA)
+        )
         self.rect = self.image.get_rect()
+
         self.flip = flip
         self.baseline_y = baseline_y + foot_offset
         self.left_x = left_x
@@ -85,7 +113,8 @@ class WolfStatic(pygame.sprite.Sprite):
         self.running = running
 
     def update(self):
-        if not self.running:
+        # choose frames
+        if not self.running or not self.frames:
             new_img = self.idle_img
             self.frame_index = 0
         else:
@@ -93,23 +122,28 @@ class WolfStatic(pygame.sprite.Sprite):
             if now - self._last_update >= self.frame_time_ms:
                 self._last_update = now
                 self.frame_index = (self.frame_index + 1) % len(self.frames)
+            else:
+                self.frame_index %= len(self.frames)
             new_img = self.frames[self.frame_index]
 
+        # swap while preserving baseline + left pin
         left = self.rect.left
-        self.image = new_img
+        bottom = self.baseline_y
+        self.image = new_img if new_img is not None else self.image
         self.rect = self.image.get_rect()
         self.rect.left = left
-        self.rect.bottom = self.baseline_y
+        self.rect.bottom = bottom
 
-    def draw(self, surf):
+    def draw(self, surf: pygame.Surface):
         surf.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+
 
 class IdleBreather:
     """Menu widget: animates Red's idle frames on a fixed baseline."""
     def __init__(self, frames, x, baseline_y, anim_fps=10):
-        self.frames = frames
+        self.frames = frames or []
         self.index = 0
-        self.image = frames[0]
+        self.image = self.frames[0] if self.frames else pygame.Surface((1, 1), pygame.SRCALPHA)
         self.rect  = self.image.get_rect()
         self.rect.midbottom = (x, baseline_y)
         self.baseline_y = baseline_y
@@ -117,6 +151,8 @@ class IdleBreather:
         self._last = pygame.time.get_ticks()
 
     def update(self):
+        if not self.frames:
+            return
         now = pygame.time.get_ticks()
         if now - self._last >= self.frame_time_ms:
             self._last = now
@@ -127,6 +163,6 @@ class IdleBreather:
             self.rect.left = left
             self.rect.bottom = self.baseline_y
 
-    def draw(self, surf):
+    def draw(self, surf: pygame.Surface):
         surf.blit(self.image, self.rect)
 
