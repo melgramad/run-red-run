@@ -11,8 +11,8 @@ audio.init_audio()
 
 # ---------- WINDOW ----------
 screen = pygame.display.set_mode((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
-pygame.display.set_caption("Run Red, Run!")
-clock = pygame.time.Clock()
+pygame.display.set_caption("Run, Red, Run!")
+clock = pygame.time.Clock(
 
 # ---------- FRAME NORMALIZER ----------
 def normalize_frames(frames, anchor="midbottom"):
