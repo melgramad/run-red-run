@@ -35,8 +35,8 @@ LOAD_BTN = ASSETS / "load_btn.png"
 LEVEL_FILE = ROOT / "level.json"
 
 # Screen setup
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 640
+SCREEN_WIDTH = 1100
+SCREEN_HEIGHT = 740
 LOWER_MARGIN = 100
 SIDE_MARGIN = 300
 
@@ -67,13 +67,17 @@ pine2_img = pygame.image.load(str(PINE2)).convert_alpha()
 
 # Tile images
 img_list = []
-for x in range(TILE_TYPES):
-    tile_path = TILE_ASSETS / f"{x}.png"
-    if not tile_path.is_file():
-        raise FileNotFoundError(f"Missing tile: {tile_path}")
+tile_files = sorted(TILE_ASSETS.glob("*.png")) 
+if not tile_files:
+    raise FileNotFoundError(f"No tile images found in {TILE_ASSETS}")
+
+for tile_path in tile_files:
     img = pygame.image.load(str(tile_path)).convert_alpha()
     img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
     img_list.append(img)
+
+TILE_TYPES = len(img_list) 
+
 
 # Save/Load buttons
 save_btn_img = pygame.image.load(str(SAVE_BTN)).convert_alpha()
@@ -109,10 +113,10 @@ class Button:
 
 
 tile_buttons = []
-button_size = 50
+button_size = 30
 padding = 10
-cols = 5
-rows = 4
+cols = 7
+rows = 7
 
 for i, img in enumerate(img_list):
     col = i % cols
@@ -126,8 +130,8 @@ selected_tile_index = None
 placed_tiles = []
 
 # Save/Load buttons
-save_button = Button(save_btn_img, SCREEN_WIDTH + 50, SCREEN_HEIGHT - 150)
-load_button = Button(load_btn_img, SCREEN_WIDTH + 50, SCREEN_HEIGHT - 80)
+save_button = Button(save_btn_img, SCREEN_WIDTH + -100, SCREEN_HEIGHT - -10)
+load_button = Button(load_btn_img, SCREEN_WIDTH + -250, SCREEN_HEIGHT - -10)
 
 #Background layout and scroll speed
 def draw_bg():
