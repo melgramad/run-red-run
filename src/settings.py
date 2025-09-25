@@ -7,7 +7,7 @@ FPS = 60
 
 # Colors
 GAME_BG = (30, 30, 30)
-MENU_BG = (16, 2, 4)  # deep, nearly-black crimson
+MENU_BG = (85, 22, 22)  # deep, nearly-black crimson
 
 # Root of your asset tree (adjust to your layout)
 PROJECT_ROOT = Path(__file__).resolve().parent
