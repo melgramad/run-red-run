@@ -1,3 +1,4 @@
+# main.py
 import pygame
 pygame.init()  # init BEFORE importing ui (fonts)
 
@@ -5,7 +6,7 @@ import settings
 from asset_loader import ASSETS, load_frames, load_numbered
 import audio
 from entities import Player, WolfStatic, IdleBreather
-from ui import draw_button, render_title
+from ui import draw_button, render_title, draw_timer
 
 audio.init_audio()
 
@@ -50,14 +51,9 @@ PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)  # adjust 23 i
 WOLF_IDLE          = load_frames([ASSETS / "wolf_stand_1.png"], scale=1.5)[0]
 WOLF_RUN           = load_numbered("wolf_run_", 1, 9, scale=1.5)
 
-# Normalize idle and running frames so the feet stay anchored
+# Normalize so feet stay anchored
 PLAYER_IDLE_FRAMES = normalize_frames(PLAYER_IDLE_FRAMES, anchor="midbottom")
 PLAYER_RUN         = normalize_frames(PLAYER_RUN,         anchor="midbottom")
-
-# verify frame counts at startup
-print("Frames -> idle:", len(PLAYER_IDLE_FRAMES),
-      " run:", len(PLAYER_RUN),
-      " wolf_run:", len(WOLF_RUN))
 
 # ---------- ENTITIES ----------
 player = Player(
@@ -99,6 +95,10 @@ menu_red = IdleBreather(
 moving_left = moving_right = False
 game_over = False
 
+# ---------- TIMER (HUD) ----------
+timer_start_ms = None   # set when Start is clicked
+elapsed_ms = 0          # updated only during gameplay, freezes on game over
+
 # ---------- MAIN LOOP ----------
 while True:
     for event in pygame.event.get():
@@ -109,7 +109,10 @@ while True:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if start_rect.collidepoint(event.pos):
                     state = "game"
-                    audio.play_game_music()   # swap (or fade out if missing)
+                    audio.play_game_music()
+                    # -- start timer --
+                    timer_start_ms = pygame.time.get_ticks()
+                    elapsed_ms = 0
                 elif exit_rect.collidepoint(event.pos):
                     pygame.quit(); raise SystemExit
         else:
@@ -138,7 +141,14 @@ while True:
 
     else:
         screen.fill(settings.GAME_BG)
+
         if not game_over:
+            # ---- update timer ----
+            if timer_start_ms is not None:
+                now = pygame.time.get_ticks()
+                elapsed_ms = now - timer_start_ms
+
+            # ---- movement/physics ----
             p_dx = (-player.speed if moving_left and not moving_right
                     else player.speed if moving_right and not moving_left
                     else 0)
@@ -162,6 +172,14 @@ while True:
         wolf.draw(screen)
         player.draw(screen)
 
+        # ---- HUD TIMER (top-right) ----
+        total_sec = elapsed_ms // 1000
+        mm = total_sec // 60
+        ss = total_sec % 60
+        tenths = (elapsed_ms % 1000) // 100
+        timer_text = f"{mm:02d}:{ss:02d}.{tenths}"
+        draw_timer(screen, timer_text, (settings.SCREEN_WIDTH - 12, 12))
+
         if game_over:
             font = pygame.font.SysFont(None, 72)
             txt = font.render("GAME OVER", True, (200, 40, 40))
@@ -170,6 +188,7 @@ while True:
 
     pygame.display.flip()
     clock.tick(settings.FPS)
+
 
 
 
