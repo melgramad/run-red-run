@@ -47,13 +47,13 @@ WHITE = (255, 255, 255)
 
 # Game variables
 ROWS = 16
-MAX_COLS = 150
+MAX_COLS = 500
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 
 scroll_left = False
 scroll_right = False
 scroll = 0
-scroll_speed = 5
+scroll_speed = 9
 
 # scale controls
 tile_scale = 1.0
@@ -138,7 +138,7 @@ load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
 
 # Background layout and scroll speed
 def draw_bg():
-    for i in range(5):  # repeat background
+    for i in range(10):  # repeat background
         offset_x = (i * sky_img.get_width()) - scroll
         screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
         screen.blit(
@@ -214,7 +214,7 @@ while run:
         scroll -= scroll_speed
     if scroll_right:
         scroll += scroll_speed
-    scroll = max(0, min(scroll, (sky_img.get_width() * 3) - SCREEN_WIDTH))
+    scroll = max(0, min(scroll, (sky_img.get_width() * 10) - SCREEN_WIDTH))
 
     # Event handling
     for event in pygame.event.get():
@@ -269,10 +269,10 @@ while run:
                             loaded_tiles = json.load(f)
                             placed_tiles.clear()
                             for item in loaded_tiles:
-                                if len(item) == 3:  # old saves without scale
+                                if len(item) == 3:  
                                     tile_index, x, y = item
                                     placed_tiles.append((tile_index, x, y, 1.0))
-                                else:  # new saves with scale
+                                else:  
                                     placed_tiles.append(tuple(item))
 
             # Right-click: remove a tile
