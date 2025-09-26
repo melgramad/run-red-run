@@ -5,7 +5,7 @@ import json
 
 pygame.init()
 
-SHARED_FOLDER = Path ("C:/Dev/run-red-run")
+SHARED_FOLDER = Path("C:/Dev/run-red-run")
 LEVEL_FILE = SHARED_FOLDER / "level.json"
 
 clock = pygame.time.Clock()
@@ -27,12 +27,9 @@ MOUNTAIN = BG_ASSETS / "mountain.png"
 PINE1 = BG_ASSETS / "pine1.png"
 PINE2 = BG_ASSETS / "pine2.png"
 
-# Save/Load buttons 
+# Save/Load buttons
 SAVE_BTN = ASSETS / "save_btn.png"
 LOAD_BTN = ASSETS / "load_btn.png"
-
-#level file path
-LEVEL_FILE = ROOT / "level.json"
 
 # Screen setup
 SCREEN_WIDTH = 1100
@@ -52,12 +49,17 @@ WHITE = (255, 255, 255)
 ROWS = 16
 MAX_COLS = 150
 TILE_SIZE = SCREEN_HEIGHT // ROWS
-TILE_TYPES = 20  # 20 tiles
 
 scroll_left = False
 scroll_right = False
 scroll = 0
 scroll_speed = 5
+
+# scale controls
+tile_scale = 1.0
+scale_step = 0.1
+max_scale = 3.0
+min_scale = 0.5
 
 # Background images
 sky_img = pygame.image.load(str(SKY)).convert_alpha()
@@ -67,7 +69,7 @@ pine2_img = pygame.image.load(str(PINE2)).convert_alpha()
 
 # Tile images
 img_list = []
-tile_files = sorted(TILE_ASSETS.glob("*.png")) 
+tile_files = sorted(TILE_ASSETS.glob("*.png"))
 if not tile_files:
     raise FileNotFoundError(f"No tile images found in {TILE_ASSETS}")
 
@@ -76,8 +78,7 @@ for tile_path in tile_files:
     img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
     img_list.append(img)
 
-TILE_TYPES = len(img_list) 
-
+TILE_TYPES = len(img_list)
 
 # Save/Load buttons
 save_btn_img = pygame.image.load(str(SAVE_BTN)).convert_alpha()
@@ -99,6 +100,7 @@ class TileButton:
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
+
 class Button:
     def __init__(self, image, x, y):
         self.image = image
@@ -116,7 +118,6 @@ tile_buttons = []
 button_size = 30
 padding = 10
 cols = 7
-rows = 7
 
 for i, img in enumerate(img_list):
     col = i % cols
@@ -127,15 +128,17 @@ for i, img in enumerate(img_list):
 
 selected_tile_index = None
 
+# placed_tiles now stores: (tile_index, grid_x, grid_y, scale)
 placed_tiles = []
 
 # Save/Load buttons
-save_button = Button(save_btn_img, SCREEN_WIDTH + -100, SCREEN_HEIGHT - -10)
-load_button = Button(load_btn_img, SCREEN_WIDTH + -250, SCREEN_HEIGHT - -10)
+save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
+load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
 
-#Background layout and scroll speed
+
+# Background layout and scroll speed
 def draw_bg():
-    for i in range(3):  # repeat background
+    for i in range(5):  # repeat background
         offset_x = (i * sky_img.get_width()) - scroll
         screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
         screen.blit(
@@ -151,17 +154,22 @@ def draw_bg():
             (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20),
         )
 
+
 def draw_grid():
     for c in range(MAX_COLS + 1):
         pygame.draw.line(
-            screen, WHITE, (c * TILE_SIZE - scroll, 0), (c * TILE_SIZE - scroll, SCREEN_HEIGHT)
+            screen,
+            WHITE,
+            (c * TILE_SIZE - scroll, 0),
+            (c * TILE_SIZE - scroll, SCREEN_HEIGHT),
         )
     for r in range(ROWS + 1):
         pygame.draw.line(
             screen, WHITE, (0, r * TILE_SIZE), (SCREEN_WIDTH, r * TILE_SIZE)
         )
 
-#main
+
+# main
 run = True
 while run:
     clock.tick(FPS)
@@ -171,8 +179,11 @@ while run:
     draw_grid()
 
     # Draw placed tiles
-    for tile_index, x, y in placed_tiles:
-        screen.blit(img_list[tile_index], (x * TILE_SIZE - scroll, y * TILE_SIZE))
+    for tile_index, x, y, scale in placed_tiles:
+        tile_img = img_list[tile_index]
+        scaled_size = int(TILE_SIZE * scale)
+        scaled_img = pygame.transform.scale(tile_img, (scaled_size, scaled_size))
+        screen.blit(scaled_img, (x * TILE_SIZE - scroll, y * TILE_SIZE))
 
     # Draw tile buttons
     for button in tile_buttons:
@@ -185,12 +196,18 @@ while run:
     # Draw selected tile following the mouse
     if selected_tile_index is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()
+        tile_img = img_list[selected_tile_index]
+        scaled_size = int(TILE_SIZE * tile_scale)
+        scaled_img = pygame.transform.scale(tile_img, (scaled_size, scaled_size))
+
         if mouse_x < SCREEN_WIDTH:
             snap_x = (mouse_x // TILE_SIZE) * TILE_SIZE
             snap_y = (mouse_y // TILE_SIZE) * TILE_SIZE
-            screen.blit(img_list[selected_tile_index], (snap_x, snap_y))
+            screen.blit(scaled_img, (snap_x, snap_y))
         else:
-            screen.blit(img_list[selected_tile_index], (mouse_x - TILE_SIZE//2, mouse_y - TILE_SIZE//2))
+            screen.blit(
+                scaled_img, (mouse_x - scaled_size // 2, mouse_y - scaled_size // 2)
+            )
 
     # Scroll map
     if scroll_left:
@@ -210,6 +227,11 @@ while run:
                 scroll_left = True
             if event.key == pygame.K_RIGHT:
                 scroll_right = True
+            if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
+                tile_scale = min(max_scale, tile_scale + scale_step)
+            if event.key == pygame.K_MINUS:
+                tile_scale = max(min_scale, tile_scale - scale_step)
+
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT:
                 scroll_left = False
@@ -231,7 +253,9 @@ while run:
                 if selected_tile_index is not None and mouse_pos[0] < SCREEN_WIDTH:
                     grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
                     grid_y = mouse_pos[1] // TILE_SIZE
-                    placed_tiles.append((selected_tile_index, grid_x, grid_y))
+                    placed_tiles.append(
+                        (selected_tile_index, grid_x, grid_y, tile_scale)
+                    )
 
                 # Save button
                 if save_button.is_clicked(mouse_pos):
@@ -243,19 +267,23 @@ while run:
                     if LEVEL_FILE.is_file():
                         with open(LEVEL_FILE, "r") as f:
                             loaded_tiles = json.load(f)
-                            placed_tiles.clear()  # clear old tiles
+                            placed_tiles.clear()
                             for item in loaded_tiles:
-                                placed_tiles.append(tuple(item))  # restore as tuple
+                                if len(item) == 3:  # old saves without scale
+                                    tile_index, x, y = item
+                                    placed_tiles.append((tile_index, x, y, 1.0))
+                                else:  # new saves with scale
+                                    placed_tiles.append(tuple(item))
 
             # Right-click: remove a tile
             if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
                 grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
                 grid_y = mouse_pos[1] // TILE_SIZE
                 placed_tiles = [
-                    (t_index, x, y) for t_index, x, y in placed_tiles
+                    (t_index, x, y, s)
+                    for t_index, x, y, s in placed_tiles
                     if not (x == grid_x and y == grid_y)
                 ]
-
 
     pygame.display.update()
 
