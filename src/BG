@@ -53,7 +53,7 @@ TILE_SIZE = SCREEN_HEIGHT // ROWS
 scroll_left = False
 scroll_right = False
 scroll = 0
-scroll_speed = 9
+scroll_speed = 13
 
 # scale controls
 tile_scale = 1.0
@@ -138,7 +138,7 @@ load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
 
 # Background layout and scroll speed
 def draw_bg():
-    for i in range(10):  # repeat background
+    for i in range(15):  # repeat background
         offset_x = (i * sky_img.get_width()) - scroll
         screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
         screen.blit(
