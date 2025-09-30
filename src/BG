@@ -5,7 +5,7 @@ import json
 
 pygame.init()
 
-SHARED_FOLDER = Path("C:/Dev/run-red-run")
+SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
 LEVEL_FILE = SHARED_FOLDER / "level.json"
 
 clock = pygame.time.Clock()
