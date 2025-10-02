@@ -1,3 +1,4 @@
+#asset_loader
 from pathlib import Path
 import pygame
 
