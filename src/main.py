@@ -1,4 +1,4 @@
-# main.py
+#main
 import pygame
 pygame.init()  # init BEFORE importing ui (fonts)
 
@@ -17,7 +17,6 @@ clock = pygame.time.Clock()
 
 # ---------- FRAME NORMALIZER ----------
 def normalize_frames(frames, anchor="midbottom"):
-    """Pad frames to uniform size and keep a common anchor point stable."""
     if not frames:
         return frames
     max_w = max(f.get_width()  for f in frames)
@@ -47,11 +46,10 @@ def normalize_frames(frames, anchor="midbottom"):
 
 # ---------- ART ----------
 PLAYER_IDLE_FRAMES = load_numbered("red_idle_", 1 , 8, scale=2.0)
-PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)  # adjust 23 if needed
+PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)
 WOLF_IDLE          = load_frames([ASSETS / "wolf_stand_1.png"], scale=1.5)[0]
 WOLF_RUN           = load_numbered("wolf_run_", 1, 9, scale=1.5)
 
-# Normalize so feet stay anchored
 PLAYER_IDLE_FRAMES = normalize_frames(PLAYER_IDLE_FRAMES, anchor="midbottom")
 PLAYER_RUN         = normalize_frames(PLAYER_RUN,         anchor="midbottom")
 
@@ -70,7 +68,6 @@ wolf = WolfStatic(
     anim_fps=12, flip=False
 )
 
-# start far apart
 player.rect.left = max(wolf.rect.right + settings.STARTING_GAP, player.rect.left)
 player.x = player.rect.midbottom[0]
 
@@ -95,9 +92,9 @@ menu_red = IdleBreather(
 moving_left = moving_right = False
 game_over = False
 
-# ---------- TIMER (HUD) ----------
-timer_start_ms = None   # set when Start is clicked
-elapsed_ms = 0          # updated only during gameplay, freezes on game over
+# ---------- TIMER ----------
+timer_start_ms = None
+elapsed_ms = 0
 
 # ---------- MAIN LOOP ----------
 while True:
@@ -110,7 +107,6 @@ while True:
                 if start_rect.collidepoint(event.pos):
                     state = "game"
                     audio.play_game_music()
-                    # -- start timer --
                     timer_start_ms = pygame.time.get_ticks()
                     elapsed_ms = 0
                 elif exit_rect.collidepoint(event.pos):
@@ -128,7 +124,6 @@ while True:
                 if event.key == pygame.K_a: moving_left = False
                 elif event.key == pygame.K_d: moving_right = False
 
-    # DRAW / UPDATE
     if state == "menu":
         screen.fill(settings.MENU_BG)
         screen.blit(title_surf, title_surf.get_rect(
@@ -136,19 +131,16 @@ while True:
         mouse_pos = pygame.mouse.get_pos()
         draw_button(screen, start_rect, "Start", mouse_pos)
         draw_button(screen, exit_rect,  "Exit",  mouse_pos)
-        menu_red.update()
-        menu_red.draw(screen)
+        menu_red.update(); menu_red.draw(screen)
 
     else:
         screen.fill(settings.GAME_BG)
 
         if not game_over:
-            # ---- update timer ----
             if timer_start_ms is not None:
                 now = pygame.time.get_ticks()
                 elapsed_ms = now - timer_start_ms
 
-            # ---- movement/physics ----
             p_dx = (-player.speed if moving_left and not moving_right
                     else player.speed if moving_right and not moving_left
                     else 0)
@@ -172,10 +164,8 @@ while True:
         wolf.draw(screen)
         player.draw(screen)
 
-        # ---- HUD TIMER (top-right) ----
         total_sec = elapsed_ms // 1000
-        mm = total_sec // 60
-        ss = total_sec % 60
+        mm = total_sec // 60; ss = total_sec % 60
         tenths = (elapsed_ms % 1000) // 100
         timer_text = f"{mm:02d}:{ss:02d}.{tenths}"
         draw_timer(screen, timer_text, (settings.SCREEN_WIDTH - 12, 12))
@@ -188,12 +178,6 @@ while True:
 
     pygame.display.flip()
     clock.tick(settings.FPS)
-
-
-
-
-
-
 
 
 
