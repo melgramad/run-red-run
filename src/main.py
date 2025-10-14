@@ -10,7 +10,10 @@
 
 import sys
 import pygame
+import os
+import random
 from pathlib import Path
+import csv
 
 # ----------------------------
 # SETTINGS (formerly settings.py)
@@ -35,6 +38,11 @@ PLAYER_FOOT_OFFSET = 50
 WOLF_FOOT_OFFSET = 0
 WOLF_EDGE_X = 8
 STARTING_GAP = 220
+ROWS = 16
+COLS = 500
+TILE_SIZE = SCREEN_HEIGHT // ROWS
+TILE_TYPES = 135
+level = 1
 
 # Audio
 MENU_VOLUME = 0.6
@@ -409,6 +417,24 @@ def main():
     # ---------- TIMER ----------
     timer_start_ms = None
     elapsed_ms = 0
+
+   #create empty tile list
+    world_data = []
+    for row in range(ROWS):
+        r = [-1] * COLS
+        world_data.append(r)
+    print(world_data)
+
+    #load in level data and create world
+    with open(f'level{level}_data.csv', newline ='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',')
+        for x, row in enumerate(reader):
+            for y, tile in enumerate (row):
+                world_data[x][y] = int(tile)
+    print(world_data)
+
+    
+ 
 
     # ---------- MAIN LOOP ----------
     running = True
