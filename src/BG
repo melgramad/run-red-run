@@ -6,7 +6,8 @@ import csv
 pygame.init()
 
 SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
-LEVEL_FILE = SHARED_FOLDER / "level.json"
+LEVEL_FILE = SHARED_FOLDER / "src" / "level.json"
+
 
 clock = pygame.time.Clock()
 FPS = 60
