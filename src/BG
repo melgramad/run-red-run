@@ -6,7 +6,8 @@ import csv
 pygame.init()
 
 SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
-LEVEL_FILE = SHARED_FOLDER / "level.json"
+LEVEL_FILE = SHARED_FOLDER / "src" / "level.json"
+
 
 clock = pygame.time.Clock()
 FPS = 60
@@ -113,11 +114,12 @@ for i, img in enumerate(img_list):
 selected_tile_index = None
 placed_tiles = []
 
-save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
 load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
+save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
+
 
 def draw_bg():
-    for i in range(10):
+    for i in range(20):
         offset_x = (i * sky_img.get_width()) - scroll
         screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
         screen.blit(
@@ -222,21 +224,55 @@ while run:
                         (selected_tile_index, grid_x, grid_y, tile_scale)
                     )
 
+                # --- Save ---
                 if save_button.is_clicked(mouse_pos):
+                    # Save as a list of dicts for clarity
+                    save_data = [
+                        {
+                            "tile_index": tile_index,
+                            "x": x,
+                            "y": y,
+                            "scale": scale
+                        }
+                        for tile_index, x, y, scale in placed_tiles
+                    ]
                     with open(LEVEL_FILE, "w") as f:
-                        json.dump(placed_tiles, f)
+                        json.dump(save_data, f, indent=4)  # indent makes it easier to edit manually
+                    print(f"Saved {len(placed_tiles)} tiles to {LEVEL_FILE}")
 
+                # --- Load ---
                 elif load_button.is_clicked(mouse_pos):
+                    print(f"Attempting to load {LEVEL_FILE}")
                     if LEVEL_FILE.is_file():
                         with open(LEVEL_FILE, "r") as f:
                             loaded_tiles = json.load(f)
-                            placed_tiles.clear()
-                            for item in loaded_tiles:
-                                if len(item) == 3:  
-                                    tile_index, x, y = item
+                        print(f"Raw loaded data: {loaded_tiles}")
+
+                        placed_tiles.clear()
+
+                        for item in loaded_tiles:
+                            # Handle dict format
+                            if isinstance(item, dict):
+                                tile_index = item.get("tile_index", 0)
+                                x = item.get("x", 0)
+                                y = item.get("y", 0)
+                                scale = item.get("scale", 1.0)
+                                placed_tiles.append((tile_index, x, y, scale))
+                            # Handle old list format: [tile_index, x, y, scale] or [x, y, tile_index]
+                            elif isinstance(item, list):
+                                if len(item) == 4:
+                                    tile_index, x, y, scale = item
+                                    placed_tiles.append((tile_index, x, y, scale))
+                                elif len(item) == 3:
+                                    x, y, tile_index = item
                                     placed_tiles.append((tile_index, x, y, 1.0))
-                                else:  
-                                    placed_tiles.append(tuple(item))
+                        print(f"Loaded {len(placed_tiles)} tiles successfully")
+                    else:
+                        print("No level.json file found!")
+
+
+
+
 
             if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
                 grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
