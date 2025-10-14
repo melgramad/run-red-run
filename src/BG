@@ -238,15 +238,15 @@ while run:
                     ]
                     with open(LEVEL_FILE, "w") as f:
                         json.dump(save_data, f, indent=4)  # indent makes it easier to edit manually
-                    print(f"Saved {len(placed_tiles)} tiles to {LEVEL_FILE}")
+                    #print(f"Saved {len(placed_tiles)} tiles to {LEVEL_FILE}")
 
                 # --- Load ---
                 elif load_button.is_clicked(mouse_pos):
-                    print(f"Attempting to load {LEVEL_FILE}")
+                    #print(f"Attempting to load {LEVEL_FILE}")
                     if LEVEL_FILE.is_file():
                         with open(LEVEL_FILE, "r") as f:
                             loaded_tiles = json.load(f)
-                        print(f"Raw loaded data: {loaded_tiles}")
+                        #print(f"Raw loaded data: {loaded_tiles}")
 
                         placed_tiles.clear()
 
@@ -266,7 +266,7 @@ while run:
                                 elif len(item) == 3:
                                     x, y, tile_index = item
                                     placed_tiles.append((tile_index, x, y, 1.0))
-                        print(f"Loaded {len(placed_tiles)} tiles successfully")
+                       # print(f"Loaded {len(placed_tiles)} tiles successfully")
                     else:
                         print("No level.json file found!")
 
