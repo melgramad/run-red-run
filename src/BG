@@ -113,8 +113,9 @@ for i, img in enumerate(img_list):
 selected_tile_index = None
 placed_tiles = []
 
-save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
 load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
+save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
+
 
 def draw_bg():
     for i in range(10):
@@ -226,17 +227,26 @@ while run:
                     with open(LEVEL_FILE, "w") as f:
                         json.dump(placed_tiles, f)
 
+
                 elif load_button.is_clicked(mouse_pos):
+                    print(f"Attempting to load {LEVEL_FILE}")
                     if LEVEL_FILE.is_file():
                         with open(LEVEL_FILE, "r") as f:
                             loaded_tiles = json.load(f)
+                            print(f"Loaded {len(loaded_tiles)} tiles")
                             placed_tiles.clear()
                             for item in loaded_tiles:
-                                if len(item) == 3:  
-                                    tile_index, x, y = item
+                                # your data is [x, y, tile_index, scale]
+                                if len(item) == 3:
+                                    x, y, tile_index = item
                                     placed_tiles.append((tile_index, x, y, 1.0))
-                                else:  
-                                    placed_tiles.append(tuple(item))
+                                elif len(item) == 4:
+                                    x, y, tile_index, scale = item
+                                    placed_tiles.append((tile_index, x, y, scale))
+                    else:
+                        print("No level.json file found!")
+
+
 
             if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
                 grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
