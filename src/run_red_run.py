@@ -1,6 +1,7 @@
 import pygame
 import csv
 import sys
+import json
 from pathlib import Path
 
 pygame.init()
@@ -10,6 +11,7 @@ import csv
 import re
 
 ROOT = Path(__file__).resolve().parent
+
 
 # where the editor writes its CSVs (same folder as the game by default)
 LEVELS_DIR = ROOT
