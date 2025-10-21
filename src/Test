@@ -1,0 +1,223 @@
+import pygame
+import json
+from pathlib import Path
+from main import Player, WolfStatic, load_numbered, normalize_frames, PLAYER_FOOT_OFFSET, WOLF_FOOT_OFFSET
+
+pygame.init()
+
+# ---------------------------- PATHS ----------------------------
+ROOT = Path(__file__).resolve().parent
+LEVEL_FILE = ROOT / "level.json"
+IMG_DIR = ROOT.parent / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
+BG_DIR = IMG_DIR / "Background"
+TILE_DIR = IMG_DIR / "tile"
+
+# ---------------------------- SCREEN ----------------------------
+SCREEN_WIDTH = 1100
+SCREEN_HEIGHT = 740
+FPS = 60
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Run, Red, Run! Test")
+clock = pygame.time.Clock()
+
+# ---------------------------- TILE SETTINGS ----------------------------
+ROWS = 16
+COLS = 500
+TILE_SIZE = SCREEN_HEIGHT // ROWS
+world_data = [[-1] * COLS for _ in range(ROWS)]
+
+# ---------------------------- LOAD BG IMAGES ----------------------------
+sky_img = pygame.image.load(str(BG_DIR / "sky_cloud.png")).convert_alpha()
+mountain_img = pygame.image.load(str(BG_DIR / "mountain.png")).convert_alpha()
+pine1_img = pygame.image.load(str(BG_DIR / "pine1.png")).convert_alpha()
+pine2_img = pygame.image.load(str(BG_DIR / "pine2.png")).convert_alpha()
+
+# ---------------------------- LOAD TILES ----------------------------
+tile_list = []
+tile_files = sorted(TILE_DIR.glob("*.png"))
+if not tile_files:
+    raise FileNotFoundError(f"No tiles found in {TILE_DIR}")
+for tile_path in tile_files:
+    img = pygame.image.load(str(tile_path)).convert_alpha()
+    img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+    tile_list.append(img)
+TILE_TYPES = len(tile_list)
+
+# ---------------------------- LOAD LEVEL ----------------------------
+if LEVEL_FILE.is_file():
+    with open(LEVEL_FILE, "r") as f:
+        loaded_tiles = json.load(f)
+    for item in loaded_tiles:
+        tile_index = item.get("tile_index", 0)
+        x = item.get("x", 0)
+        y = item.get("y", 0)
+        if 0 <= y < ROWS and 0 <= x < COLS:
+            world_data[y][x] = tile_index
+else:
+    print("No level.json found — starting empty.")
+
+# ---------------------------- PLAYER & WOLF ASSETS ----------------------------
+PLAYER_IDLE_FRAMES = load_numbered("red_idle_", 1 , 8,  scale=2.0)
+PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)
+PLAYER_IDLE_FRAMES = normalize_frames(PLAYER_IDLE_FRAMES, anchor="midbottom")
+PLAYER_RUN         = normalize_frames(PLAYER_RUN, anchor="midbottom")
+
+wolf_idle_list = load_numbered("wolf_stand_", 1, 1, scale=1.5)
+WOLF_IDLE = wolf_idle_list[0] if wolf_idle_list else None
+WOLF_RUN = load_numbered("wolf_run_", 1, 9, scale=1.5)
+
+# ---------------------------- SCROLL & INPUT ----------------------------
+scroll = 0
+moving_left = moving_right = False
+GRAVITY = 0.5
+JUMP_FORCE = 12
+
+# ---------------------------- HELPERS ----------------------------
+def draw_bg(scroll):
+    width = sky_img.get_width()
+    for i in range(20):
+        offset_x = i * width
+        screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
+        screen.blit(mountain_img, (offset_x - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 260))
+        screen.blit(pine1_img, (offset_x - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100))
+        screen.blit(pine2_img, (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20))
+
+def draw_world():
+    for y, row in enumerate(world_data):
+        for x, tile in enumerate(row):
+            if tile >= 0 and tile < TILE_TYPES:
+                screen_x = x * TILE_SIZE - scroll
+                screen.blit(tile_list[tile], (screen_x, y * TILE_SIZE))
+
+def move_and_collide(sprite, dx, dy):
+    # Horizontal collision (keep pixel-step)
+    step_x = 1 if dx > 0 else -1
+    for _ in range(abs(int(dx))):
+        sprite.rect.x += step_x
+        for y, row in enumerate(world_data):
+            for x, tile in enumerate(row):
+                if tile >= 0:
+                    tile_rect = pygame.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                    if sprite.rect.colliderect(tile_rect):
+                        if step_x > 0: sprite.rect.right = tile_rect.left
+                        else: sprite.rect.left = tile_rect.right
+                        dx = 0
+
+    # Vertical collision (single check)
+    sprite.rect.y += dy
+    sprite.airborne = True
+    # calculate range of rows the sprite touches
+    top_row = max(0, sprite.rect.top // TILE_SIZE)
+    bottom_row = min(ROWS-1, sprite.rect.bottom // TILE_SIZE)
+    left_col = max(0, sprite.rect.left // TILE_SIZE)
+    right_col = min(COLS-1, sprite.rect.right // TILE_SIZE)
+
+    for y in range(top_row, bottom_row + 1):
+        for x in range(left_col, right_col + 1):
+            tile = world_data[y][x]
+            if tile >= 0:
+                tile_rect = pygame.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                if sprite.rect.colliderect(tile_rect):
+                    if dy > 0:
+                        sprite.rect.bottom = tile_rect.top
+                        sprite.vel_y = 0
+                        sprite.airborne = False
+                    elif dy < 0:
+                        sprite.rect.top = tile_rect.bottom
+                        sprite.vel_y = 0
+
+
+        if collided:
+            break
+
+def find_spawn_y(col):
+    for row in range(ROWS):
+        if world_data[row][col] >= 0:
+            return row * TILE_SIZE
+    return SCREEN_HEIGHT
+
+# ---------------------------- SPAWN CHARACTERS ----------------------------
+player_spawn_col = 5
+wolf_spawn_col = 0
+
+player_y = find_spawn_y(player_spawn_col)
+player = Player(
+    PLAYER_IDLE_FRAMES, PLAYER_RUN,
+    x=player_spawn_col * TILE_SIZE + TILE_SIZE // 2,
+    baseline_y=player_y,
+    foot_offset=PLAYER_FOOT_OFFSET,
+    speed=5, anim_fps=12
+)
+player.world_x = player.rect.midbottom[0]
+player.vel_y = 0
+player.airborne = False
+
+wolf_y = find_spawn_y(wolf_spawn_col)
+wolf = WolfStatic(
+    WOLF_RUN, WOLF_IDLE,
+    left_x=wolf_spawn_col * TILE_SIZE,
+    baseline_y=wolf_y,
+    foot_offset=WOLF_FOOT_OFFSET,
+    anim_fps=12
+)
+wolf.world_x = wolf.rect.left
+
+# ---------------------------- MAIN LOOP ----------------------------
+run = True
+while run:
+    clock.tick(FPS)
+    screen.fill((144, 201, 120))
+
+    # --- EVENTS ---
+# --- EVENTS ---
+for event in pygame.event.get():
+    if event.type == pygame.QUIT:
+        run = False
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_LEFT: moving_left = True
+        if event.key == pygame.K_RIGHT: moving_right = True
+        if event.key in (pygame.K_UP, pygame.K_SPACE):
+            player.try_jump()  # uses Player's jump logic
+    if event.type == pygame.KEYUP:
+        if event.key == pygame.K_LEFT: moving_left = False
+        if event.key == pygame.K_RIGHT: moving_right = False
+
+    # --- PLAYER MOVEMENT ---
+    dx = (-player.speed if moving_left else player.speed if moving_right else 0)
+    player.vel_y += GRAVITY
+    if player.vel_y > 12: player.vel_y = 12
+
+    # move and handle collisions
+    move_and_collide(player, dx, player.vel_y)
+
+    # sync world x for scrolling
+    player.world_x += dx
+    player.x = player.world_x
+
+    # animate player
+    player.move_and_animate(dx)
+
+
+    # --- WOLF MOVEMENT ---
+    wolf_dx = dx
+    move_and_collide(wolf, wolf_dx, 0)
+    wolf.world_x += wolf_dx
+    wolf.update()
+
+    # --- SCROLL ---
+    target_scroll = player.world_x - SCREEN_WIDTH // 4
+    scroll += (target_scroll - scroll) * 0.1
+    scroll = max(0, min(scroll, COLS*TILE_SIZE - SCREEN_WIDTH))
+
+    # --- DRAW ---
+    draw_bg(scroll)
+    draw_world()
+    wolf.rect.x = int(wolf.world_x - scroll)
+    wolf.draw(screen)
+    player.rect.x = int(player.world_x - scroll)
+    player.draw(screen)
+
+    pygame.display.update()
+
+pygame.quit()

@@ -75,7 +75,6 @@ def load_frames(paths, scale=1.0):
                 )
             frames.append(img)
         except Exception:
-            # soft-fail: add a placeholder so the game can still run
             frames.append(_placeholder_surface(int(32*scale), int(32*scale), "asset"))
     return frames
 
@@ -86,8 +85,7 @@ def load_numbered(prefix, start, end, ext=".png", scale=1.0):
         if fp.is_file():
             files.append(fp)
     if not files:
-        # no frames found; return one placeholder
-        return [ _placeholder_surface(int(32*scale), int(32*scale), f"{prefix}*") ]
+        return [_placeholder_surface(int(32*scale), int(32*scale), f"{prefix}*")]
     return load_frames(files, scale)
 
 # ----------------------------
@@ -101,7 +99,6 @@ def init_audio():
         if not pygame.mixer.get_init():
             pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
     except Exception:
-        # If sound device isn't available, keep going silently.
         pass
 
 def play_menu_music(start_at=3.0):
@@ -321,7 +318,7 @@ class IdleBreather:
         surf.blit(self.image, self.rect)
 
 # ----------------------------
-# FRAME NORMALIZER (from your main)
+# FRAME NORMALIZER
 # ----------------------------
 def normalize_frames(frames, anchor="midbottom"):
     if not frames:
@@ -355,15 +352,13 @@ def normalize_frames(frames, anchor="midbottom"):
 # MAIN
 # ----------------------------
 def main():
-    pygame.init()  # init BEFORE anything that uses fonts/audio
+    pygame.init()
     init_audio()
 
-    # ---------- WINDOW ----------
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Run, Red, Run!")
     clock = pygame.time.Clock()
 
-    # ---------- ART ----------
     PLAYER_IDLE_FRAMES = load_numbered("red_idle_", 1 , 8,  scale=2.0)
     PLAYER_RUN         = load_numbered("red_run_",  1, 23, scale=2.0)
 
@@ -374,7 +369,6 @@ def main():
     PLAYER_IDLE_FRAMES = normalize_frames(PLAYER_IDLE_FRAMES, anchor="midbottom")
     PLAYER_RUN         = normalize_frames(PLAYER_RUN,         anchor="midbottom")
 
-    # ---------- ENTITIES ----------
     player = Player(
         PLAYER_IDLE_FRAMES, PLAYER_RUN,
         x=320, baseline_y=BASELINE_Y,
@@ -389,11 +383,9 @@ def main():
         anim_fps=12, flip=False
     )
 
-    # Separate them at start
     player.rect.left = max(wolf.rect.right + STARTING_GAP, player.rect.left)
     player.x = player.rect.midbottom[0]
 
-    # ---------- MENU SETUP ----------
     state = "menu"
     play_menu_music()
 
@@ -413,28 +405,25 @@ def main():
 
     moving_left = moving_right = False
     game_over = False
-
-    # ---------- TIMER ----------
     timer_start_ms = None
     elapsed_ms = 0
 
-   #create empty tile list
-    world_data = []
-    for row in range(ROWS):
-        r = [-1] * COLS
-        world_data.append(r)
-    print(world_data)
+    world_data = [[-1] * COLS for _ in range(ROWS)]
 
-    #load in level data and create world
-    with open(f'level{level}_data.csv', newline ='') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',')
-        for x, row in enumerate(reader):
-            for y, tile in enumerate (row):
-                world_data[x][y] = int(tile)
+    # --- CSV loading updated ---
+    LEVEL_FILE = PROJECT_ROOT / f"level{level}_data.csv"
+    if not LEVEL_FILE.is_file():
+        print(f"⚠️ Warning: Level file not found: {LEVEL_FILE}")
+    else:
+        with open(LEVEL_FILE, newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            for x, row in enumerate(reader):
+                for y, tile in enumerate(row):
+                    try:
+                        world_data[x][y] = int(tile)
+                    except ValueError:
+                        world_data[x][y] = -1
     print(world_data)
-
-    
- 
 
     # ---------- MAIN LOOP ----------
     running = True
@@ -467,8 +456,7 @@ def main():
 
         if state == "menu":
             screen.fill(MENU_BG)
-            screen.blit(title_surf, title_surf.get_rect(
-                center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//6)))
+            screen.blit(title_surf, title_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//6)))
             mouse_pos = pygame.mouse.get_pos()
             draw_button(screen, start_rect, "Start", mouse_pos)
             draw_button(screen, exit_rect,  "Exit",  mouse_pos)
@@ -486,7 +474,8 @@ def main():
                         else player.speed if moving_right and not moving_left
                         else 0)
 
-                wolf.set_running(p_dx != 0)
+                wolf.set_running(p_dx)
+
                 wolf.update()
 
                 next_left = player.rect.left + p_dx
@@ -499,7 +488,6 @@ def main():
                 else:
                     player.move_and_animate(p_dx)
 
-                # keep on screen horizontally
                 player.rect.right = max(0, min(player.rect.right, SCREEN_WIDTH))
                 player.x = player.rect.midbottom[0]
 
@@ -515,8 +503,7 @@ def main():
             if game_over:
                 font = pygame.font.SysFont(None, 72)
                 txt = font.render("GAME OVER", True, (200, 40, 40))
-                screen.blit(txt, txt.get_rect(
-                    center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//3)))
+                screen.blit(txt, txt.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//3)))
 
         pygame.display.flip()
         clock.tick(FPS)
@@ -529,11 +516,3 @@ def main():
 # ----------------------------
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
