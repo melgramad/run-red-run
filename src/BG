@@ -45,11 +45,11 @@ TILE_SIZE = SCREEN_HEIGHT // ROWS
 scroll_left = False
 scroll_right = False
 scroll = 0
-scroll_speed = 9
+scroll_speed = 15
 
 tile_scale = 1.0
 scale_step = 0.1
-max_scale = 3.0
+max_scale = 6.0
 min_scale = 0.5
 
 sky_img = pygame.image.load(str(SKY)).convert_alpha()
@@ -187,7 +187,7 @@ while run:
         scroll -= scroll_speed
     if scroll_right:
         scroll += scroll_speed
-    scroll = max(0, min(scroll, (sky_img.get_width() * 10) - SCREEN_WIDTH))
+    scroll = max(0, min(scroll, (sky_img.get_width() * 50) - SCREEN_WIDTH))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
