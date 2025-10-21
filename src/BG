@@ -119,7 +119,7 @@ save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
 
 
 def draw_bg():
-    for i in range(20):
+    for i in range(16):
         offset_x = (i * sky_img.get_width()) - scroll
         screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
         screen.blit(

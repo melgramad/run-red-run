@@ -26,9 +26,13 @@ FPS = 60
 GAME_BG = (30, 30, 30)
 MENU_BG = (85, 22, 22)  # deep, nearly-black crimson
 
-# Project paths
-PROJECT_ROOT = Path(__file__).resolve().parent
-ASSETS_ROOT  = PROJECT_ROOT.parent / "assets"
+# --- Paths (match the editor) ---
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # points to run-red-run/
+ASSETS = PROJECT_ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
+TILE_ASSETS = ASSETS / "tile"
+
+LEVEL_FILE = PROJECT_ROOT / "src" / "level.json"
+
 
 # Physics & layout
 GRAVITY = 0.45
@@ -47,6 +51,23 @@ level = 1
 # Audio
 MENU_VOLUME = 0.6
 GAME_VOLUME = 0.6
+
+# --- TILE LOADING (matches Level Editor) ---
+img_list = []
+tile_files = sorted(TILE_ASSETS.glob("*.png"))
+
+if not tile_files:
+    raise FileNotFoundError(f"No tile images found in {TILE_ASSETS}")
+
+for tile_path in tile_files:
+    img = pygame.image.load(str(tile_path)).convert_alpha()
+    img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+    img_list.append(img)
+
+TILE_TYPES = len(img_list)
+print(f"Loaded {TILE_TYPES} tiles from: {TILE_ASSETS}")
+
+
 
 # ----------------------------
 # ASSET LOADER (formerly asset_loader.py)
@@ -317,6 +338,60 @@ class IdleBreather:
     def draw(self, surf: pygame.Surface):
         surf.blit(self.image, self.rect)
 
+#collision 
+class World:
+    def __init__(self):
+        self.obstacle_list = []
+
+    def process_data(self, data):
+        """Load tiles from JSON level data (with collision rules)."""
+        for entry in data:
+            try:
+                tile_index = entry.get("tile_index", -1)
+                x = entry.get("x", 0)
+                y = entry.get("y", 0)
+                scale = entry.get("scale", 1.0)
+
+                # Skip invalid tiles
+                if tile_index < 0 or tile_index >= len(img_list):
+                    continue
+
+                img = img_list[tile_index]
+                if scale != 1.0:
+                    new_size = (
+                        int(img.get_width() * scale),
+                        int(img.get_height() * scale)
+                    )
+                    img = pygame.transform.scale(img, new_size)
+
+                img_rect = img.get_rect()
+                img_rect.x = x
+                img_rect.y = y
+                tile_data = (img, img_rect)
+
+                # --- Your collision logic preserved ---
+                if 58 <= tile_index <= 93:
+                    # These tiles are collidable obstacles
+                    self.obstacle_list.append(tile_data)
+                elif tile_index in (2, 14):
+                    pass  # water
+                elif tile_index == 6:
+                    pass  # grass decor
+                else:
+                    # Non-collidable decorative tile, ignore
+                    pass
+
+            except Exception as e:
+                print(f"Error processing tile {entry}: {e}")
+
+    def draw(self, surface):
+        """Draw all tiles (obstacles + background)."""
+        for img, rect in self.obstacle_list:
+            surface.blit(img, rect)
+
+
+                        
+
 # ----------------------------
 # FRAME NORMALIZER
 # ----------------------------
@@ -411,19 +486,33 @@ def main():
     world_data = [[-1] * COLS for _ in range(ROWS)]
 
     # --- CSV loading updated ---
-    LEVEL_FILE = PROJECT_ROOT / f"level{level}_data.csv"
-    if not LEVEL_FILE.is_file():
-        print(f"⚠️ Warning: Level file not found: {LEVEL_FILE}")
+   #print(f"⚠️ Warning: Level file not found: {LEVEL_FILE}")
+   # else:
+        #with open(LEVEL_FILE, newline='') as csvfile:
+            #reader = csv.reader(csvfile, delimiter=',')
+           # for x, row in enumerate(reader):
+                #for y, tile in enumerate(row):
+                    #try:
+                        #world_data[x][y] = int(tile)
+                    #except ValueError:
+                       # world_data[x][y] = -1
+    #print(world_data)
+
+    import json
+
+    LEVEL_FILE = PROJECT_ROOT / "src" / "level.json"
+
+    if LEVEL_FILE.exists():
+        with open(LEVEL_FILE, "r") as f:
+            level_data = json.load(f)
+        print(f"Loaded {len(level_data)} tiles from {LEVEL_FILE}")
     else:
-        with open(LEVEL_FILE, newline='') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
-            for x, row in enumerate(reader):
-                for y, tile in enumerate(row):
-                    try:
-                        world_data[x][y] = int(tile)
-                    except ValueError:
-                        world_data[x][y] = -1
-    print(world_data)
+        print(f"Level file not found: {LEVEL_FILE}")
+    level_data = []
+
+    # Create and process the world
+    world_instance = world()
+    world_instance.process_data(world_data)
 
     # ---------- MAIN LOOP ----------
     running = True
@@ -464,6 +553,11 @@ def main():
 
         else:
             screen.fill(GAME_BG)
+
+            # --- Draw the world first ---
+            # --- Draw the world first ---
+    
+            world_instance.draw(screen)
 
             if not game_over:
                 if timer_start_ms is not None:
