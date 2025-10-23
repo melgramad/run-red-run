@@ -87,6 +87,7 @@ class World:
     def __init__(self):
         self.tile_list = []
         self.obstacle_list = []
+        self.kill_list = [] 
 
     def process_data(self, data):
         self.tile_list = []
@@ -112,26 +113,24 @@ class World:
                 self.tile_list.append((img, rect))
 
                 # Preserve collision info
-                if tile_index == 5 or tile_index == 3 or (tile_index >= 58 and tile_index <= 93):
+                if tile_index == 5 or tile_index == 3 or (tile_index>= 129 and tile_index<= 133) or (tile_index >= 58 and tile_index <= 93):
                     self.obstacle_list.append((img, rect))
+
+                #Lethal (top water)
+                if tile_index == 14:
+                    self.kill_list.append((img, rect))
 
     def draw(self, surf, scroll):
         for img, rect in self.tile_list:
             surf.blit(img, (rect.x - scroll, rect.y))
             # optional: draw red collision boxes for debugging
-            pygame.draw.rect(surf, (255, 0, 0), (rect.x - scroll, rect.y, rect.width, rect.height), 2)
+            #pygame.draw.rect(surf, (255, 0, 0), (rect.x - scroll, rect.y, rect.width, rect.height), 2)
 
-    def draw(self, surf, scroll):
-        # Draw all tiles
-        for img, rect in self.tile_list:
-            surf.blit(img, (rect.x - scroll, rect.y))
-            # Optional: draw red collision rectangles
-            pygame.draw.rect(surf, (255, 0, 0), (rect.x - scroll, rect.y, rect.width, rect.height), 2)
 
 # ----------------------------
 # PLAYER / WOLF CLASSES
 # ----------------------------
-GRAVITY = 0.45
+GRAVITY = 0.85
 JUMP_POWER = 11
 BASELINE_Y = SCREEN_HEIGHT // 2
 PLAYER_FOOT_OFFSET = 50
@@ -239,7 +238,7 @@ class Player(pygame.sprite.Sprite):
     def draw(self, surf, scroll):
         # Draw the player with horizontal scroll offset
         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
-        
+
 class WolfStatic(pygame.sprite.Sprite):
     def __init__(self, run_frames, idle_img, x, baseline_y, flip=False):
         super().__init__()
@@ -294,7 +293,7 @@ def main():
     world_instance = World()
     world_instance.process_data(level_data)
 
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, 320, BASELINE_Y, PLAYER_FOOT_OFFSET)
+    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
     wolf = WolfStatic(WOLF_RUN, WOLF_IDLE, WOLF_EDGE_X, BASELINE_Y)
 
     running = True
@@ -337,10 +336,23 @@ def main():
 
         # --- Draw tiles / obstacles ---
         world_instance.draw(screen, scroll)
-
         # --- Update player (with collision) ---
         player.move_and_animate(dx, world_instance.obstacle_list)
+
+        # --- Check for deadly block (tile_index 14) collision ---
+        for _, rect in world_instance.kill_list:
+            if player.rect.colliderect(rect):
+                # Reset player to start position
+                player.x = 100
+                player.y = BASELINE_Y
+                player.vel_y = 0
+                player.airborne = False
+                scroll = 0  # optional: reset camera to beginning
+                break  # stop checking once hit
+
+        # --- Draw player ---
         player.draw(screen, scroll)
+
 
         # --- Update wolf ---
         wolf.set_running(dx)
