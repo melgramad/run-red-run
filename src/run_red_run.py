@@ -1,238 +1,309 @@
-import pygame
-import csv
-import sys
-import json
+import sys, pygame, json
 from pathlib import Path
 
+# ----------------------------
+# SETTINGS
+# ----------------------------
+SCREEN_WIDTH  = 1100
+SCREEN_HEIGHT = 740
+LOWER_MARGIN  = 100
+SIDE_MARGIN   = 300
+FPS           = 60
+ROWS          = 16
+TILE_SIZE     = SCREEN_HEIGHT // ROWS
+
+# Paths
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ASSETS_ROOT  = PROJECT_ROOT / "assets"
+ASSETS       = PROJECT_ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
+TILE_ASSETS  = ASSETS / "tile"
+OBJ_ASSETS   = TILE_ASSETS / "Objects_Animated"
+BG_ASSETS    = ASSETS / "Background"
+LEVEL_FILE   = PROJECT_ROOT / "src" / "level.json"
+
+# Colors
+WHITE  = (255, 255, 255)
+GAME_BG = (30, 30, 30)
+
+# ----------------------------
+# INIT
+# ----------------------------
 pygame.init()
-import glob
-from pathlib import Path
-import csv
-import re
-
-ROOT = Path(__file__).resolve().parent
-
-
-# where the editor writes its CSVs (same folder as the game by default)
-LEVELS_DIR = ROOT
-
-LEVEL_RE = re.compile(r"level(\d+)_data\.csv$", re.IGNORECASE)
-
-def list_available_levels():
-    files = sorted(LEVELS_DIR.glob("level*_data.csv"))
-    levels = []
-    for f in files:
-        m = LEVEL_RE.search(f.name)
-        if m:
-            levels.append(int(m.group(1)))
-    return sorted(set(levels))
-
-def load_level_into(world_data, level_num):
-    """
-    Tries, in order:
-    1) level{n}_data.csv (correct name)
-    2) level{n}.data.csv (common typo with a dot)
-    """
-    candidates = [
-        LEVELS_DIR / f"level{level_num}_data.csv",   # correct
-        LEVELS_DIR / f"level{level_num}.data.csv",   # typo fallback
-    ]
-    for fp in candidates:
-        if fp.is_file():
-            with open(fp, newline="") as csvfile:
-                reader = csv.reader(csvfile, delimiter=",")
-                for x, row in enumerate(reader):
-                    for y, tile in enumerate(row):
-                        world_data[x][y] = int(tile)
-            print(f"[OK] Loaded {fp.name}")
-            return True
-    return False
-
-# --- init world, then try to load; if missing, fall back gracefully ---
-ROWS = 16
-MAX_COLS = 150
-TILE_SIZE = SCREEN_HEIGHT // ROWS
-world_data = [[-1]*MAX_COLS for _ in range(ROWS)]
-
-level = 0  # start from what you actually saved in the editor
-if not load_level_into(world_data, level):
-    avail = list_available_levels()
-    if avail:
-        print(f"[WARN] level{level}_data.csv not found. Available levels: {avail}. Loading level{avail[0]}.")
-        load_level_into(world_data, avail[0])
-        level = avail[0]
-    else:
-        print("[WARN] No level*_data.csv files found. Run the editor and Save a level first.")
-
-
-# --- Screen Setup ---
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 640
-FPS = 60
-
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Run, Red, Run!")
-
+screen = pygame.display.set_mode((SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN), pygame.RESIZABLE)
+pygame.display.set_caption("Run Red, Run!")
 clock = pygame.time.Clock()
 
-# --- Game Variables ---
-ROWS = 16
-MAX_COLS = 150
-TILE_SIZE = SCREEN_HEIGHT // ROWS
-level = 0
-scroll = 0
-scroll_speed = 4
-
-# --- Paths ---
-ROOT = Path(__file__).resolve().parent
-IMG_DIR = ROOT / "img"
-BG_DIR = IMG_DIR / "Background"
-TILE_DIR = IMG_DIR / "tile"
-
-# --- Load Background Images ---
-sky_img = pygame.image.load(str(BG_DIR / "sky_cloud.png")).convert_alpha()
-mountain_img = pygame.image.load(str(BG_DIR / "mountain.png")).convert_alpha()
-pine1_img = pygame.image.load(str(BG_DIR / "pine1.png")).convert_alpha()
-pine2_img = pygame.image.load(str(BG_DIR / "pine2.png")).convert_alpha()
-
-# --- Load Tiles ---
-TILE_TYPES = 21
-tile_list = []
-for x in range(TILE_TYPES):
-    img = pygame.image.load(str(TILE_DIR / f"{x}.png")).convert_alpha()
-    img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
-    tile_list.append(img)
-
-# --- Colors ---
-WHITE = (255, 255, 255)
-GREEN = (144, 201, 120)
-
-# --- Font ---
-font = pygame.font.SysFont("Futura", 30)
-
-# --- World Data ---
-world_data = [[-1] * MAX_COLS for _ in range(ROWS)]
-
-# --- Load Level Function ---
-def load_level(level):
-    filename = f"level{level}_data.csv"
+# ----------------------------
+# LOAD BACKGROUND
+# ----------------------------
+def load_image_safe(path):
     try:
-        with open(filename, newline="") as csvfile:
-            reader = csv.reader(csvfile, delimiter=",")
-            for x, row in enumerate(reader):
-                for y, tile in enumerate(row):
-                    world_data[x][y] = int(tile)
-        print(f"[OK] Loaded {filename}")
-    except FileNotFoundError:
-        print(f"[WARN] Level file {filename} not found — starting empty.")
+        return pygame.image.load(str(path)).convert_alpha()
+    except Exception:
+        surf = pygame.Surface((64, 64)); surf.fill((255, 0, 255)); return surf
 
-# --- Draw Background ---
-def draw_bg():
-    screen.fill(GREEN)
-    width = sky_img.get_width()
-    for x in range(4):
-        screen.blit(sky_img, ((x * width) - scroll * 0.5, 0))
-        screen.blit(mountain_img, ((x * width) - scroll * 0.6,
-                                   SCREEN_HEIGHT - mountain_img.get_height() - 300))
-        screen.blit(pine1_img, ((x * width) - scroll * 0.7,
-                                SCREEN_HEIGHT - pine1_img.get_height() - 150))
-        screen.blit(pine2_img, ((x * width) - scroll * 0.8,
-                                SCREEN_HEIGHT - pine2_img.get_height()))
+sky_img      = load_image_safe(BG_ASSETS / "sky_cloud.png")
+mountain_img = load_image_safe(BG_ASSETS / "mountain.png")
+pine1_img    = load_image_safe(BG_ASSETS / "pine1.png")
+pine2_img    = load_image_safe(BG_ASSETS / "pine2.png")
 
-# --- Draw World Tiles ---
-def draw_world():
-    for y, row in enumerate(world_data):
-        for x, tile in enumerate(row):
-            if tile >= 0:
-                screen.blit(tile_list[tile], (x * TILE_SIZE - scroll, y * TILE_SIZE))
+# ----------------------------
+# LOAD TILES + STAR
+# ----------------------------
+img_list = [load_image_safe(p) for p in sorted(TILE_ASSETS.glob("*.png"))]
+if not img_list:
+    raise FileNotFoundError(f"No tile images found in {TILE_ASSETS}")
 
-# --- Draw Text ---
-def draw_text(text, x, y, color=WHITE):
-    img = font.render(text, True, color)
-    screen.blit(img, (x, y))
+STAR_IMG = load_image_safe(OBJ_ASSETS / "Star.png")
 
-# --- Player Setup (simple rectangle placeholder) ---
-player_rect = pygame.Rect(100, SCREEN_HEIGHT - TILE_SIZE * 2, TILE_SIZE, TILE_SIZE * 2)
-player_vel_y = 0
-on_ground = False
-GRAVITY = 0.5
-MOVE_SPEED = 5
-JUMP_FORCE = 12
+# ----------------------------
+# LOAD PLAYER FRAMES (Red)
+# ----------------------------
+def load_frames(prefix, start, end, scale=1.0):
+    frames = []
+    for i in range(start, end + 1):
+        fp = ASSETS_ROOT / f"{prefix}{i}.png"
+        if fp.exists():
+            img = load_image_safe(fp)
+            if scale != 1.0:
+                img = pygame.transform.scale(img, (int(img.get_width()*scale), int(img.get_height()*scale)))
+            frames.append(img)
+    if not frames:
+        surf = pygame.Surface((64, 64)); surf.fill((255, 0, 255)); frames.append(surf)
+    return frames
 
-# --- Game State ---
-load_level(level)
-moving_left = moving_right = False
+PLAYER_SCALE = 2.0
+PLAYER_IDLE_FRAMES = load_frames("red_idle_", 1, 8,  PLAYER_SCALE)
+PLAYER_RUN         = load_frames("red_run_",  1, 23, PLAYER_SCALE)
 
-# --- Main Loop ---
-run = True
-while run:
-    clock.tick(FPS)
-    draw_bg()
-    draw_world()
+# ----------------------------
+# WORLD
+# ----------------------------
+class World:
+    def __init__(self):
+        self.tile_list = []
+        self.obstacle_list = []
+        self.kill_list = []
+        self.star_list = []
 
-    # --- Player Movement ---
-    dx = 0
-    dy = player_vel_y
+    def process_data(self, data):
+        self.tile_list.clear(); self.obstacle_list.clear(); self.kill_list.clear(); self.star_list.clear()
+        for entry in data:
+            tile_index = entry.get("tile_index", -1)
+            gx = entry.get("x", 0)
+            gy = entry.get("y", 0)
+            scale = max(0.1, entry.get("scale", 1.0))
+            px, py = int(gx * TILE_SIZE), int(gy * TILE_SIZE)
+            if 0 <= tile_index < len(img_list):
+                img = pygame.transform.scale(img_list[tile_index], (int(TILE_SIZE * scale), int(TILE_SIZE * scale)))
+                rect = pygame.Rect(px, py, img.get_width(), img.get_height())
+                self.tile_list.append((img, rect))
+                if tile_index == 14:
+                    self.kill_list.append((img, rect))
+                if tile_index in (5, 3) or (129 <= tile_index <= 133) or (58 <= tile_index <= 93):
+                    self.obstacle_list.append((img, rect))
 
-    if moving_left:
-        dx = -MOVE_SPEED
-    if moving_right:
-        dx = MOVE_SPEED
+            # detect star placement
+            if "star" in str(entry.get("texture_path", "")).lower():
+                rect = pygame.Rect(px, py, STAR_IMG.get_width(), STAR_IMG.get_height())
+                self.star_list.append((STAR_IMG, rect))
 
-    # gravity
-    player_vel_y += GRAVITY
-    if player_vel_y > 10:
-        player_vel_y = 10
+    def draw(self, surf, scroll):
+        for img, rect in self.tile_list:
+            surf.blit(img, (rect.x - scroll, rect.y))
+        for img, rect in self.star_list:
+            surf.blit(img, (rect.x - scroll, rect.y))
 
-    # floor collision
-    if player_rect.bottom + player_vel_y >= SCREEN_HEIGHT:
-        player_vel_y = 0
-        player_rect.bottom = SCREEN_HEIGHT
-        on_ground = True
+# ----------------------------
+# PLAYER (Red)
+# ----------------------------
+GRAVITY = 0.85
+JUMP_POWER = 12
+BASELINE_Y = SCREEN_HEIGHT - 90
+PLAYER_FOOT_OFFSET = 0
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self, idle_frames, run_frames, x, baseline_y, foot_offset=0, speed=6):
+        super().__init__()
+        self.idle_frames = idle_frames or []
+        self.run_frames  = run_frames or []
+        self._seq = self.idle_frames if self.idle_frames else self.run_frames
+        self.frame_index = 0
+        self.image = (self._seq[0] if self._seq else pygame.Surface((64,64)))
+        self.rect  = self.image.get_rect()
+        self.baseline_y = baseline_y + foot_offset
+        self.x = float(x)
+        self.y = float(self.baseline_y)
+        self.rect.midbottom = (int(self.x), int(self.y))
+        self.flip = False
+        self.base_speed = speed
+        self.speed = speed
+        self.vel_y = 0.0
+        self.airborne = False
+        self.boost_timer = 0
+        self.frame_time_ms = 1000 // 12
+        self._last_update  = pygame.time.get_ticks()
+
+    def try_jump(self):
+        if not self.airborne:
+            self.vel_y = -JUMP_POWER
+            self.airborne = True
+
+    def move_and_animate(self, dx, obstacles):
+        # ---- Horizontal
+        self.x += dx
+        self.rect.midbottom = (int(self.x), int(self.y))
+        for _, r in obstacles:
+            if self.rect.colliderect(r):
+                if dx > 0:
+                    if self.rect.bottom - r.top < TILE_SIZE * 0.4:
+                        self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
+                    else:
+                        self.rect.right = r.left
+                elif dx < 0:
+                    if self.rect.bottom - r.top < TILE_SIZE * 0.4:
+                        self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
+                    else:
+                        self.rect.left = r.right
+                self.x = self.rect.midbottom[0]
+
+        # ---- Vertical
+        self.vel_y += GRAVITY
+        self.y += self.vel_y
+        self.rect.midbottom = (int(self.x), int(self.y))
+        for _, r in obstacles:
+            if self.rect.colliderect(r):
+                if self.vel_y > 0:
+                    self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
+                elif self.vel_y < 0:
+                    self.rect.top = r.bottom; self.vel_y = 0
+                self.y = self.rect.midbottom[1]
+
+        # ---- Animation
+        seq = self.run_frames if dx != 0 or self.airborne else self.idle_frames
+        if seq != getattr(self, "_seq", None):
+            self.frame_index = 0; self._seq = seq
+        if self._seq:
+            now = pygame.time.get_ticks()
+            if now - self._last_update > self.frame_time_ms:
+                self._last_update = now
+                self.frame_index = (self.frame_index + 1) % len(self._seq)
+            self.image = self._seq[self.frame_index]
+
+        old_midbottom = self.rect.midbottom
+        self.rect = self.image.get_rect()
+        self.rect.midbottom = old_midbottom
+        self.x = float(self.rect.midbottom[0]); self.y = float(self.rect.midbottom[1])
+
+    def update_boost(self):
+        if self.boost_timer > 0:
+            self.boost_timer -= 1
+            if self.boost_timer == 0:
+                self.speed = self.base_speed
+
+    def boost(self, duration=180, multiplier=1.8):  # 180 frames ≈ 3 seconds
+        self.speed = self.base_speed * multiplier
+        self.boost_timer = duration
+
+    def draw(self, surf, scroll):
+        surf.blit(pygame.transform.flip(self.image, self.flip, False),
+                  (self.rect.x - scroll, self.rect.y))
+
+# ----------------------------
+# AUDIO (game)
+# ----------------------------
+GAME_MUSIC = ASSETS_ROOT / "game_loop.ogg"
+def play_game_music():
+    try:
+        if GAME_MUSIC.is_file():
+            pygame.mixer.music.load(str(GAME_MUSIC))
+            pygame.mixer.music.set_volume(0.7)
+            pygame.mixer.music.play(-1, start=0.0)
+    except Exception:
+        pass
+
+# ----------------------------
+# MAIN LOOP
+# ----------------------------
+def main():
+    if LEVEL_FILE.exists():
+        level_data = json.loads(Path(LEVEL_FILE).read_text())
     else:
-        on_ground = False
+        level_data = []
 
-    player_rect.x += dx
-    player_rect.y += player_vel_y
+    world = World()
+    world.process_data(level_data)
 
-    # --- Draw Player ---
-    pygame.draw.rect(screen, (255, 0, 0), player_rect)
+    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET, speed=6)
+    scroll = 0
+    moving_left = moving_right = False
 
-    # --- HUD ---
-    draw_text(f"Level: {level}", 10, 10)
-    draw_text("← / → Move   ↑ Jump   L / R Scroll   PgUp/PgDn Change Level", 10, 40)
+    play_game_music()
 
-    # --- Events ---
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
+    running = True
+    while running:
+        clock.tick(FPS)
+        screen.fill(GAME_BG)
 
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT:
-                moving_left = True
-            if event.key == pygame.K_RIGHT:
-                moving_right = True
-            if event.key == pygame.K_UP and on_ground:
-                player_vel_y = -JUMP_FORCE
-                on_ground = False
-            if event.key == pygame.K_L:
-                scroll = max(0, scroll - TILE_SIZE * 2)
-            if event.key == pygame.K_R:
-                scroll += TILE_SIZE * 2
-            if event.key == pygame.K_PAGEUP:
-                level += 1
-                load_level(level)
-            if event.key == pygame.K_PAGEDOWN and level > 0:
-                level -= 1
-                load_level(level)
+        for e in pygame.event.get():
+            if e.type == pygame.QUIT:
+                running = False
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_a: moving_left = True
+                if e.key == pygame.K_d: moving_right = True
+                if e.key in (pygame.K_w, pygame.K_SPACE): player.try_jump()
+                if e.key == pygame.K_ESCAPE: running = False
+            elif e.type == pygame.KEYUP:
+                if e.key == pygame.K_a: moving_left = False
+                if e.key == pygame.K_d: moving_right = False
 
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_LEFT:
-                moving_left = False
-            if event.key == pygame.K_RIGHT:
-                moving_right = False
+        dx = (-player.speed if moving_left else player.speed if moving_right else 0)
 
-    pygame.display.update()
+        # ----- Camera scroll (never below 0)
+        screen_center_x = SCREEN_WIDTH // 2
+        player_screen_x = player.x - scroll
+        if player_screen_x > screen_center_x and dx > 0:
+            scroll += dx
+        elif player_screen_x < screen_center_x and dx < 0 and scroll > 0:
+            scroll += dx
+        scroll = max(0, scroll)
 
-pygame.quit()
-sys.exit()
+        # ----- Prevent leaving left side
+        if scroll == 0 and (player.x - scroll) < (player.rect.width / 2):
+            player.x = scroll + (player.rect.width / 2)
+
+        # ----- Parallax BG
+        for i in range(16):
+            off = i * sky_img.get_width()
+            screen.blit(sky_img,      (off - scroll * 0.4, 0))
+            screen.blit(mountain_img, (off - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 260))
+            screen.blit(pine1_img,    (off - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100))
+            screen.blit(pine2_img,    (off - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20))
+
+        # ----- Draw + update
+        world.draw(screen, scroll)
+        player.move_and_animate(dx, world.obstacle_list)
+
+        # ⭐ Star collision check
+        for img, rect in world.star_list:
+            if player.rect.colliderect(rect):
+                player.boost()  # 3 sec boost
+                world.star_list.remove((img, rect))  # remove star after pickup
+                break
+
+        # Lethal check (tile_index == 14)
+        for _, r in world.kill_list:
+            if player.rect.colliderect(r):
+                player.x, player.y = 100, BASELINE_Y
+                player.vel_y, player.airborne, scroll = 0, False, 0
+                break
+
+        player.update_boost()
+        player.draw(screen, scroll)
+        pygame.display.flip()
+
+    pygame.quit(); sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+
