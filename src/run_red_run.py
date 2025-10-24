@@ -155,7 +155,7 @@ def draw_text(text, x, y, color=WHITE):
 player_rect = pygame.Rect(100, SCREEN_HEIGHT - TILE_SIZE * 2, TILE_SIZE, TILE_SIZE * 2)
 player_vel_y = 0
 on_ground = False
-GRAVITY = 0.5
+GRAVITY = 1.5
 MOVE_SPEED = 5
 JUMP_FORCE = 12
 

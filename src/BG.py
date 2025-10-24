@@ -117,7 +117,7 @@ class World:
 # ----------------------------
 # PLAYER (Red)
 # ----------------------------
-GRAVITY = 0.85
+GRAVITY = 0.99
 JUMP_POWER = 12
 BASELINE_Y = SCREEN_HEIGHT - 90
 PLAYER_FOOT_OFFSET = 0
@@ -156,16 +156,11 @@ class Player(pygame.sprite.Sprite):
         for _, r in obstacles:
             if self.rect.colliderect(r):
                 if dx > 0:
-                    if self.rect.bottom - r.top < TILE_SIZE * 0.4:
-                        self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
-                    else:
-                        self.rect.right = r.left
+                    self.rect.right = r.left
                 elif dx < 0:
-                    if self.rect.bottom - r.top < TILE_SIZE * 0.4:
-                        self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
-                    else:
-                        self.rect.left = r.right
+                    self.rect.left = r.right
                 self.x = self.rect.midbottom[0]
+
 
         # ---- Vertical
         self.vel_y += GRAVITY
