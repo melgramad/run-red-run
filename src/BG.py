@@ -1,308 +1,288 @@
-import sys, pygame, json
+import sys 
 from pathlib import Path
-
-# ----------------------------
-# SETTINGS
-# ----------------------------
-SCREEN_WIDTH  = 1100
-SCREEN_HEIGHT = 740
-LOWER_MARGIN  = 100
-SIDE_MARGIN   = 300
-FPS           = 60
-ROWS          = 16
-TILE_SIZE     = SCREEN_HEIGHT // ROWS
-
-# Paths
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ASSETS_ROOT  = PROJECT_ROOT / "assets"
-ASSETS       = PROJECT_ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
-TILE_ASSETS  = ASSETS / "tile"
-OBJ_ASSETS   = TILE_ASSETS / "Objects_Animated"
-BG_ASSETS    = ASSETS / "Background"
-LEVEL_FILE   = PROJECT_ROOT / "src" / "level.json"
-
-# Colors
-WHITE  = (255, 255, 255)
-GAME_BG = (30, 30, 30)
-
-# ----------------------------
-# INIT
-# ----------------------------
+import pygame
+import json
+import csv
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN), pygame.RESIZABLE)
-pygame.display.set_caption("Run Red, Run!")
+
+SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
+LEVEL_FILE = SHARED_FOLDER / "src" / "level.json"
+
+
 clock = pygame.time.Clock()
+FPS = 60
 
-# ----------------------------
-# LOAD BACKGROUND
-# ----------------------------
-def load_image_safe(path):
-    try:
-        return pygame.image.load(str(path)).convert_alpha()
-    except Exception:
-        surf = pygame.Surface((64, 64)); surf.fill((255, 0, 255)); return surf
+ROOT = Path(__file__).resolve().parent.parent
+ASSETS = ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
 
-sky_img      = load_image_safe(BG_ASSETS / "sky_cloud.png")
-mountain_img = load_image_safe(BG_ASSETS / "mountain.png")
-pine1_img    = load_image_safe(BG_ASSETS / "pine1.png")
-pine2_img    = load_image_safe(BG_ASSETS / "pine2.png")
+BG_ASSETS = ASSETS / "Background"
+TILE_ASSETS = ASSETS / "tile"
 
-# ----------------------------
-# LOAD TILES + STAR
-# ----------------------------
-img_list = [load_image_safe(p) for p in sorted(TILE_ASSETS.glob("*.png"))]
-if not img_list:
+SKY = BG_ASSETS / "sky_cloud.png"
+MOUNTAIN = BG_ASSETS / "mountain.png"
+PINE1 = BG_ASSETS / "pine1.png"
+PINE2 = BG_ASSETS / "pine2.png"
+
+SAVE_BTN = ASSETS / "save_btn.png"
+LOAD_BTN = ASSETS / "load_btn.png"
+
+SCREEN_WIDTH = 1100
+SCREEN_HEIGHT = 740
+LOWER_MARGIN = 100
+SIDE_MARGIN = 300
+
+screen = pygame.display.set_mode(
+    (SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN)
+)
+pygame.display.set_caption("Level Editor")
+
+WHITE = (255, 255, 255)
+
+ROWS = 16
+MAX_COLS = 500
+TILE_SIZE = SCREEN_HEIGHT // ROWS
+
+scroll_left = False
+scroll_right = False
+scroll = 0
+scroll_speed = 15
+
+tile_scale = 1.0
+scale_step = 0.1
+max_scale = 6.0
+min_scale = 0.5
+
+sky_img = pygame.image.load(str(SKY)).convert_alpha()
+mountain_img = pygame.image.load(str(MOUNTAIN)).convert_alpha()
+pine1_img = pygame.image.load(str(PINE1)).convert_alpha()
+pine2_img = pygame.image.load(str(PINE2)).convert_alpha()
+
+img_list = []
+tile_files = sorted(TILE_ASSETS.glob("*.png"))
+if not tile_files:
     raise FileNotFoundError(f"No tile images found in {TILE_ASSETS}")
 
-STAR_IMG = load_image_safe(OBJ_ASSETS / "Star.png")
+for tile_path in tile_files:
+    img = pygame.image.load(str(tile_path)).convert_alpha()
+    img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
+    img_list.append(img)
 
-# ----------------------------
-# LOAD PLAYER FRAMES (Red)
-# ----------------------------
-def load_frames(prefix, start, end, scale=1.0):
-    frames = []
-    for i in range(start, end + 1):
-        fp = ASSETS_ROOT / f"{prefix}{i}.png"
-        if fp.exists():
-            img = load_image_safe(fp)
-            if scale != 1.0:
-                img = pygame.transform.scale(img, (int(img.get_width()*scale), int(img.get_height()*scale)))
-            frames.append(img)
-    if not frames:
-        surf = pygame.Surface((64, 64)); surf.fill((255, 0, 255)); frames.append(surf)
-    return frames
+TILE_TYPES = len(img_list)
 
-PLAYER_SCALE = 2.0
-PLAYER_IDLE_FRAMES = load_frames("red_idle_", 1, 8,  PLAYER_SCALE)
-PLAYER_RUN         = load_frames("red_run_",  1, 23, PLAYER_SCALE)
+save_btn_img = pygame.image.load(str(SAVE_BTN)).convert_alpha()
+save_btn_img = pygame.transform.scale(save_btn_img, (100, 50))
+load_btn_img = pygame.image.load(str(LOAD_BTN)).convert_alpha()
+load_btn_img = pygame.transform.scale(load_btn_img, (100, 50))
 
-# ----------------------------
-# WORLD
-# ----------------------------
-class World:
-    def __init__(self):
-        self.tile_list = []
-        self.obstacle_list = []
-        self.kill_list = []
-        self.star_list = []
+class TileButton:
+    def __init__(self, image, x, y, size, index):
+        self.image = pygame.transform.scale(image, (size, size))
+        self.rect = pygame.Rect(x, y, size, size)
+        self.index = index
 
-    def process_data(self, data):
-        self.tile_list.clear(); self.obstacle_list.clear(); self.kill_list.clear(); self.star_list.clear()
-        for entry in data:
-            tile_index = entry.get("tile_index", -1)
-            gx = entry.get("x", 0)
-            gy = entry.get("y", 0)
-            scale = max(0.1, entry.get("scale", 1.0))
-            px, py = int(gx * TILE_SIZE), int(gy * TILE_SIZE)
-            if 0 <= tile_index < len(img_list):
-                img = pygame.transform.scale(img_list[tile_index], (int(TILE_SIZE * scale), int(TILE_SIZE * scale)))
-                rect = pygame.Rect(px, py, img.get_width(), img.get_height())
-                self.tile_list.append((img, rect))
-                if tile_index == 14:
-                    self.kill_list.append((img, rect))
-                if tile_index in (5, 3) or (129 <= tile_index <= 133) or (58 <= tile_index <= 93):
-                    self.obstacle_list.append((img, rect))
+    def draw(self, surface):
+        surface.blit(self.image, self.rect.topleft)
+        pygame.draw.rect(surface, WHITE, self.rect, 1)
 
-            # detect star placement
-            if "star" in str(entry.get("texture_path", "")).lower():
-                rect = pygame.Rect(px, py, STAR_IMG.get_width(), STAR_IMG.get_height())
-                self.star_list.append((STAR_IMG, rect))
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
 
-    def draw(self, surf, scroll):
-        for img, rect in self.tile_list:
-            surf.blit(img, (rect.x - scroll, rect.y))
-        for img, rect in self.star_list:
-            surf.blit(img, (rect.x - scroll, rect.y))
+class Button:
+    def __init__(self, image, x, y):
+        self.image = image
+        self.rect = pygame.Rect(x, y, image.get_width(), image.get_height())
 
-# ----------------------------
-# PLAYER (Red)
-# ----------------------------
-GRAVITY = 0.85
-JUMP_POWER = 12
-BASELINE_Y = SCREEN_HEIGHT - 90
-PLAYER_FOOT_OFFSET = 0
+    def draw(self, surface):
+        surface.blit(self.image, self.rect.topleft)
+        pygame.draw.rect(surface, WHITE, self.rect, 1)
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, idle_frames, run_frames, x, baseline_y, foot_offset=0, speed=6):
-        super().__init__()
-        self.idle_frames = idle_frames or []
-        self.run_frames  = run_frames or []
-        self._seq = self.idle_frames if self.idle_frames else self.run_frames
-        self.frame_index = 0
-        self.image = (self._seq[0] if self._seq else pygame.Surface((64,64)))
-        self.rect  = self.image.get_rect()
-        self.baseline_y = baseline_y + foot_offset
-        self.x = float(x)
-        self.y = float(self.baseline_y)
-        self.rect.midbottom = (int(self.x), int(self.y))
-        self.flip = False
-        self.base_speed = speed
-        self.speed = speed
-        self.vel_y = 0.0
-        self.airborne = False
-        self.boost_timer = 0
-        self.frame_time_ms = 1000 // 12
-        self._last_update  = pygame.time.get_ticks()
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
 
-    def try_jump(self):
-        if not self.airborne:
-            self.vel_y = -JUMP_POWER
-            self.airborne = True
+tile_buttons = []
+button_size = 30
+padding = 10
+cols = 7
 
-    def move_and_animate(self, dx, obstacles):
-        # ---- Horizontal
-        self.x += dx
-        self.rect.midbottom = (int(self.x), int(self.y))
-        for _, r in obstacles:
-            if self.rect.colliderect(r):
-                if dx > 0:
-                    if self.rect.bottom - r.top < TILE_SIZE * 0.4:
-                        self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
+for i, img in enumerate(img_list):
+    col = i % cols
+    row = i // cols
+    x = SCREEN_WIDTH + padding + col * (button_size + padding)
+    y = padding + row * (button_size + padding)
+    tile_buttons.append(TileButton(img, x, y, button_size, i))
+
+selected_tile_index = None
+placed_tiles = []
+
+load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
+save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
+
+
+def draw_bg():
+    for i in range(20):
+        offset_x = (i * sky_img.get_width()) - scroll
+        screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
+        screen.blit(
+            mountain_img,
+            (offset_x - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 260),
+        )
+        screen.blit(
+            pine1_img,
+            (offset_x - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100),
+        )
+        screen.blit(
+            pine2_img,
+            (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20),
+        )
+
+def draw_grid():
+    for c in range(MAX_COLS + 1):
+        pygame.draw.line(
+            screen,
+            WHITE,
+            (c * TILE_SIZE - scroll, 0),
+            (c * TILE_SIZE - scroll, SCREEN_HEIGHT),
+        )
+    for r in range(ROWS + 1):
+        pygame.draw.line(
+            screen, WHITE, (0, r * TILE_SIZE), (SCREEN_WIDTH, r * TILE_SIZE)
+        )
+
+run = True
+while run:
+    clock.tick(FPS)
+    screen.fill((0, 0, 0))
+
+    draw_bg()
+    draw_grid()
+
+    for tile_index, x, y, scale in placed_tiles:
+        tile_img = img_list[tile_index]
+        scaled_size = int(TILE_SIZE * scale)
+        scaled_img = pygame.transform.scale(tile_img, (scaled_size, scaled_size))
+        screen.blit(scaled_img, (x * TILE_SIZE - scroll, y * TILE_SIZE))
+
+    for button in tile_buttons:
+        button.draw(screen)
+
+    save_button.draw(screen)
+    load_button.draw(screen)
+
+    if selected_tile_index is not None:
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        tile_img = img_list[selected_tile_index]
+        scaled_size = int(TILE_SIZE * tile_scale)
+        scaled_img = pygame.transform.scale(tile_img, (scaled_size, scaled_size))
+
+        if mouse_x < SCREEN_WIDTH:
+            snap_x = (mouse_x // TILE_SIZE) * TILE_SIZE
+            snap_y = (mouse_y // TILE_SIZE) * TILE_SIZE
+            screen.blit(scaled_img, (snap_x, snap_y))
+        else:
+            screen.blit(
+                scaled_img, (mouse_x - scaled_size // 2, mouse_y - scaled_size // 2)
+            )
+
+    if scroll_left:
+        scroll -= scroll_speed
+    if scroll_right:
+        scroll += scroll_speed
+    scroll = max(0, min(scroll, (sky_img.get_width() * 50) - SCREEN_WIDTH))
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                scroll_left = True
+            if event.key == pygame.K_RIGHT:
+                scroll_right = True
+            if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
+                tile_scale = min(max_scale, tile_scale + scale_step)
+            if event.key == pygame.K_MINUS:
+                tile_scale = max(min_scale, tile_scale - scale_step)
+
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_LEFT:
+                scroll_left = False
+            if event.key == pygame.K_RIGHT:
+                scroll_right = False
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+
+            if event.button == 1:
+                for button in tile_buttons:
+                    if button.is_clicked(mouse_pos):
+                        selected_tile_index = button.index
+
+                if selected_tile_index is not None and mouse_pos[0] < SCREEN_WIDTH:
+                    grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
+                    grid_y = mouse_pos[1] // TILE_SIZE
+                    placed_tiles.append(
+                        (selected_tile_index, grid_x, grid_y, tile_scale)
+                    )
+
+                # --- Save ---
+                if save_button.is_clicked(mouse_pos):
+                    # Save as a list of dicts for clarity
+                    save_data = [
+                        {
+                            "tile_index": tile_index,
+                            "x": x,
+                            "y": y,
+                            "scale": scale
+                        }
+                        for tile_index, x, y, scale in placed_tiles
+                    ]
+                    with open(LEVEL_FILE, "w") as f:
+                        json.dump(save_data, f, indent=4)  # indent makes it easier to edit manually
+                    #print(f"Saved {len(placed_tiles)} tiles to {LEVEL_FILE}")
+
+                # --- Load ---
+                elif load_button.is_clicked(mouse_pos):
+                    #print(f"Attempting to load {LEVEL_FILE}")
+                    if LEVEL_FILE.is_file():
+                        with open(LEVEL_FILE, "r") as f:
+                            loaded_tiles = json.load(f)
+                        #print(f"Raw loaded data: {loaded_tiles}")
+
+                        placed_tiles.clear()
+
+                        for item in loaded_tiles:
+                            # Handle dict format
+                            if isinstance(item, dict):
+                                tile_index = item.get("tile_index", 0)
+                                x = item.get("x", 0)
+                                y = item.get("y", 0)
+                                scale = item.get("scale", 1.0)
+                                placed_tiles.append((tile_index, x, y, scale))
+                            # Handle old list format: [tile_index, x, y, scale] or [x, y, tile_index]
+                            elif isinstance(item, list):
+                                if len(item) == 4:
+                                    tile_index, x, y, scale = item
+                                    placed_tiles.append((tile_index, x, y, scale))
+                                elif len(item) == 3:
+                                    x, y, tile_index = item
+                                    placed_tiles.append((tile_index, x, y, 1.0))
+                       # print(f"Loaded {len(placed_tiles)} tiles successfully")
                     else:
-                        self.rect.right = r.left
-                elif dx < 0:
-                    if self.rect.bottom - r.top < TILE_SIZE * 0.4:
-                        self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
-                    else:
-                        self.rect.left = r.right
-                self.x = self.rect.midbottom[0]
+                        print("No level.json file found!")
 
-        # ---- Vertical
-        self.vel_y += GRAVITY
-        self.y += self.vel_y
-        self.rect.midbottom = (int(self.x), int(self.y))
-        for _, r in obstacles:
-            if self.rect.colliderect(r):
-                if self.vel_y > 0:
-                    self.rect.bottom = r.top; self.vel_y = 0; self.airborne = False
-                elif self.vel_y < 0:
-                    self.rect.top = r.bottom; self.vel_y = 0
-                self.y = self.rect.midbottom[1]
 
-        # ---- Animation
-        seq = self.run_frames if dx != 0 or self.airborne else self.idle_frames
-        if seq != getattr(self, "_seq", None):
-            self.frame_index = 0; self._seq = seq
-        if self._seq:
-            now = pygame.time.get_ticks()
-            if now - self._last_update > self.frame_time_ms:
-                self._last_update = now
-                self.frame_index = (self.frame_index + 1) % len(self._seq)
-            self.image = self._seq[self.frame_index]
 
-        old_midbottom = self.rect.midbottom
-        self.rect = self.image.get_rect()
-        self.rect.midbottom = old_midbottom
-        self.x = float(self.rect.midbottom[0]); self.y = float(self.rect.midbottom[1])
 
-    def update_boost(self):
-        if self.boost_timer > 0:
-            self.boost_timer -= 1
-            if self.boost_timer == 0:
-                self.speed = self.base_speed
 
-    def boost(self, duration=180, multiplier=1.8):  # 180 frames ≈ 3 seconds
-        self.speed = self.base_speed * multiplier
-        self.boost_timer = duration
+            if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
+                grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
+                grid_y = mouse_pos[1] // TILE_SIZE
+                placed_tiles = [
+                    (t_index, x, y, s)
+                    for t_index, x, y, s in placed_tiles
+                    if not (x == grid_x and y == grid_y)
+                ]
 
-    def draw(self, surf, scroll):
-        surf.blit(pygame.transform.flip(self.image, self.flip, False),
-                  (self.rect.x - scroll, self.rect.y))
+    pygame.display.update()
 
-# ----------------------------
-# AUDIO (game)
-# ----------------------------
-GAME_MUSIC = ASSETS_ROOT / "game_loop.ogg"
-def play_game_music():
-    try:
-        if GAME_MUSIC.is_file():
-            pygame.mixer.music.load(str(GAME_MUSIC))
-            pygame.mixer.music.set_volume(0.7)
-            pygame.mixer.music.play(-1, start=0.0)
-    except Exception:
-        pass
-
-# ----------------------------
-# MAIN LOOP
-# ----------------------------
-def main():
-    if LEVEL_FILE.exists():
-        level_data = json.loads(Path(LEVEL_FILE).read_text())
-    else:
-        level_data = []
-
-    world = World()
-    world.process_data(level_data)
-
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET, speed=6)
-    scroll = 0
-    moving_left = moving_right = False
-
-    play_game_music()
-
-    running = True
-    while running:
-        clock.tick(FPS)
-        screen.fill(GAME_BG)
-
-        for e in pygame.event.get():
-            if e.type == pygame.QUIT:
-                running = False
-            elif e.type == pygame.KEYDOWN:
-                if e.key == pygame.K_a: moving_left = True
-                if e.key == pygame.K_d: moving_right = True
-                if e.key in (pygame.K_w, pygame.K_SPACE): player.try_jump()
-                if e.key == pygame.K_ESCAPE: running = False
-            elif e.type == pygame.KEYUP:
-                if e.key == pygame.K_a: moving_left = False
-                if e.key == pygame.K_d: moving_right = False
-
-        dx = (-player.speed if moving_left else player.speed if moving_right else 0)
-
-        # ----- Camera scroll (never below 0)
-        screen_center_x = SCREEN_WIDTH // 2
-        player_screen_x = player.x - scroll
-        if player_screen_x > screen_center_x and dx > 0:
-            scroll += dx
-        elif player_screen_x < screen_center_x and dx < 0 and scroll > 0:
-            scroll += dx
-        scroll = max(0, scroll)
-
-        # ----- Prevent leaving left side
-        if scroll == 0 and (player.x - scroll) < (player.rect.width / 2):
-            player.x = scroll + (player.rect.width / 2)
-
-        # ----- Parallax BG
-        for i in range(16):
-            off = i * sky_img.get_width()
-            screen.blit(sky_img,      (off - scroll * 0.4, 0))
-            screen.blit(mountain_img, (off - scroll * 0.6, SCREEN_HEIGHT - mountain_img.get_height() - 260))
-            screen.blit(pine1_img,    (off - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100))
-            screen.blit(pine2_img,    (off - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20))
-
-        # ----- Draw + update
-        world.draw(screen, scroll)
-        player.move_and_animate(dx, world.obstacle_list)
-
-        # ⭐ Star collision check
-        for img, rect in world.star_list:
-            if player.rect.colliderect(rect):
-                player.boost()  # 3 sec boost
-                world.star_list.remove((img, rect))  # remove star after pickup
-                break
-
-        # Lethal check (tile_index == 14)
-        for _, r in world.kill_list:
-            if player.rect.colliderect(r):
-                player.x, player.y = 100, BASELINE_Y
-                player.vel_y, player.airborne, scroll = 0, False, 0
-                break
-
-        player.update_boost()
-        player.draw(screen, scroll)
-        pygame.display.flip()
-
-    pygame.quit(); sys.exit(0)
-
-if __name__ == "__main__":
-    main()
+pygame.quit()
