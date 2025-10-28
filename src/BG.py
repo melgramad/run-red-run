@@ -49,7 +49,7 @@ scroll_speed = 15
 
 tile_scale = 1.0
 scale_step = 0.1
-max_scale = 6.0
+max_scale = 15.0
 min_scale = 0.5
 
 sky_img = pygame.image.load(str(SKY)).convert_alpha()
