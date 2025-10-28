@@ -1,4 +1,4 @@
-import sys
+import sys 
 import pygame
 import os
 import random
@@ -18,6 +18,7 @@ TILE_SIZE = SCREEN_HEIGHT // ROWS
 
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ASSETS_ROOT  = PROJECT_ROOT / "assets"  # <— added: direct assets folder for Red sprites
 ASSETS = PROJECT_ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
 TILE_ASSETS = ASSETS / "tile"
 BG_ASSETS = ASSETS / "Background"
@@ -62,7 +63,7 @@ for tile_path in tile_files:
     img_list.append(load_image_safe(tile_path))
 
 # ----------------------------
-# LOAD PLAYER / WOLF FRAMES
+# LOAD PLAYER FRAMES (from /assets)
 # ----------------------------
 def load_frames(paths, scale=1.0):
     frames = []
@@ -73,12 +74,12 @@ def load_frames(paths, scale=1.0):
         frames.append(img)
     return frames
 
-PLAYER_SCALE = 0.8  # adjust smaller here
-PLAYER_IDLE_FRAMES = load_frames([ASSETS / f"red_idle_{i}.png" for i in range(1,9)], PLAYER_SCALE)
-PLAYER_RUN = load_frames([ASSETS / f"red_run_{i}.png" for i in range(1,24)], PLAYER_SCALE)
+PLAYER_SCALE = 2.0 # proper size
 
-WOLF_IDLE = load_frames([ASSETS / "wolf_stand_1.png"], 1.5)[0]
-WOLF_RUN = load_frames([ASSETS / f"wolf_run_{i}.png" for i in range(1,10)], 1.5)
+PLAYER_IDLE_FRAMES = load_frames([ASSETS_ROOT / f"red_idle_{i}.png" for i in range(1,9)], PLAYER_SCALE)
+PLAYER_RUN         = load_frames([ASSETS_ROOT / f"red_run_{i}.png"  for i in range(1,24)], PLAYER_SCALE)
+PLAYER_CLIMB       = load_frames([ASSETS_ROOT / f"red_wallslide_{i}.png" for i in range(1,5)], PLAYER_SCALE)
+
 
 # ----------------------------
 # WORLD
@@ -119,41 +120,34 @@ class World:
 
                 #Lethal (top water)
                 if tile_index == 14:
-                    # Expand water kill zone upward so partial water still kills
                     kill_rect = rect.copy()
-                    kill_rect.y -= int(TILE_SIZE * 0.025)  # extend 30% of tile height upward
+                    kill_rect.y -= int(TILE_SIZE * 0.025)
                     kill_rect.height += int(TILE_SIZE * 0.3)
                     self.kill_list.append((img, kill_rect))
 
-
                 # climbable vines
                 if 120 <= tile_index <= 123:
-                     self.vine_list.append((img, rect))
-
+                    self.vine_list.append((img, rect))
 
     def draw(self, surf, scroll):
         for img, rect in self.tile_list:
             surf.blit(img, (rect.x - scroll, rect.y))
-            # optional: draw red collision boxes for debugging
-            #pygame.draw.rect(surf, (255, 0, 0), (rect.x - scroll, rect.y, rect.width, rect.height), 2)
-
+            # pygame.draw.rect(surf, (255, 0, 0), (rect.x - scroll, rect.y, rect.width, rect.height), 2)
 
 # ----------------------------
-# PLAYER / WOLF CLASSES
+# PLAYER CLASS
 # ----------------------------
 GRAVITY = 0.85
 JUMP_POWER = 11
 BASELINE_Y = SCREEN_HEIGHT // 2
 PLAYER_FOOT_OFFSET = 50
-WOLF_FOOT_OFFSET = 0
-WOLF_EDGE_X = 8
-STARTING_GAP = 220
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, idle_frames, run_frames, x, baseline_y, foot_offset=0, speed=5):
+    def __init__(self, idle_frames, run_frames, climb_frames, x, baseline_y, foot_offset=0, speed=5):
         super().__init__()
         self.idle_frames = idle_frames
         self.run_frames = run_frames
+        self.climb_frames = climb_frames
         self.frame_index = 0
         self.image = self.idle_frames[0] if idle_frames else pygame.Surface((64,64))
         self.rect = self.image.get_rect()
@@ -167,6 +161,7 @@ class Player(pygame.sprite.Sprite):
         self.airborne = False
         self.frame_time_ms = 1000//12
         self._last_update = pygame.time.get_ticks()
+        self._current_seq = self.idle_frames
 
     def try_jump(self):
         if not self.airborne:
@@ -181,16 +176,15 @@ class Player(pygame.sprite.Sprite):
         self.rect.midbottom = (int(self.x), int(self.y))
         for _, rect in obstacles:
             if self.rect.colliderect(rect):
-                if dx > 0:  # moving right
-                    # Step-up test: is there room to step onto this block?
+                if dx > 0:
                     step_height = rect.top - self.rect.bottom
-                    if 0 < step_height <= TILE_SIZE * 0.3:  # small ledge
+                    if 0 < step_height <= TILE_SIZE * 0.3:
                         self.rect.bottom = rect.top
                         self.vel_y = 0
                         self.airborne = False
                     else:
                         self.rect.right = rect.left
-                elif dx < 0:  # moving left
+                elif dx < 0:
                     step_height = rect.top - self.rect.bottom
                     if 0 < step_height <= TILE_SIZE * 0.3:
                         self.rect.bottom = rect.top
@@ -198,10 +192,7 @@ class Player(pygame.sprite.Sprite):
                         self.airborne = False
                     else:
                         self.rect.left = rect.right
-                # Sync float position
                 self.x = self.rect.midbottom[0]
-
-
 
         # ----------------
         # VERTICAL MOVE
@@ -211,90 +202,45 @@ class Player(pygame.sprite.Sprite):
         self.rect.midbottom = (int(self.x), int(self.y))
         for _, rect in obstacles:
             if self.rect.colliderect(rect):
-                if self.vel_y > 0:  # falling
+                if self.vel_y > 0:
                     self.rect.bottom = rect.top
                     self.vel_y = 0
                     self.airborne = False
-                elif self.vel_y < 0:  # jumping
+                elif self.vel_y < 0:
                     self.rect.top = rect.bottom
                     self.vel_y = 0
                 self.y = self.rect.midbottom[1]
 
-
         # ----------------
-        # ANIMATION
+        # ANIMATION (idle/run)
         # ----------------
         seq = self.run_frames if dx != 0 or self.airborne else self.idle_frames
+        self.animate(seq)
 
-        # Reset frame index if sequence changed
+    def animate(self, seq):
         if seq != getattr(self, "_current_seq", None):
             self.frame_index = 0
             self._current_seq = seq
-
-        # Use the current sequence
         if self._current_seq:
             now = pygame.time.get_ticks()
             if now - self._last_update > self.frame_time_ms:
                 self._last_update = now
                 self.frame_index = (self.frame_index + 1) % len(self._current_seq)
             self.image = self._current_seq[self.frame_index]
-
-        # --- Keep the same rect position after changing image ---
-        old_midbottom = self.rect.midbottom  # preserve corrected collision position
+        old_midbottom = self.rect.midbottom
         self.rect = self.image.get_rect()
         self.rect.midbottom = old_midbottom
-
-        # Keep float position in sync
         self.x = float(self.rect.midbottom[0])
         self.y = float(self.rect.midbottom[1])
 
     def on_vine(self, vines):
-        """Check if player is touching any vine tile."""
         for _, r in vines:
             if self.rect.colliderect(r):
                 return True
         return False
 
     def draw(self, surf, scroll):
-        # Draw the player with horizontal scroll offset
         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
-
-class WolfStatic(pygame.sprite.Sprite):
-    def __init__(self, run_frames, idle_img, x, baseline_y, flip=False):
-        super().__init__()
-        self.frames = run_frames
-        self.idle_img = idle_img
-        self.frame_index = 0
-        self.image = idle_img
-        self.rect = self.image.get_rect()
-        self.flip = flip
-        self.baseline_y = baseline_y
-        self.left_x = x
-        self.frame_time_ms = 1000//12
-        self._last_update = pygame.time.get_ticks()
-        self.running = False
-        self.rect.left = x
-        self.rect.bottom = baseline_y
-
-    def set_running(self, running):
-        self.running = running
-
-    def update(self):
-        if self.running and self.frames:
-            now = pygame.time.get_ticks()
-            if now - self._last_update >= self.frame_time_ms:
-                self._last_update = now
-                self.frame_index = (self.frame_index + 1) % len(self.frames)
-            self.image = self.frames[self.frame_index]
-        else:
-            self.image = self.idle_img
-        left = self.rect.left
-        self.rect = self.image.get_rect()
-        self.rect.left = left
-        self.rect.bottom = self.baseline_y
-
-    def draw(self, surf):
-        surf.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
 # ----------------------------
 # MAIN LOOP
@@ -313,8 +259,7 @@ def main():
     world_instance = World()
     world_instance.process_data(level_data)
 
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
-    wolf = WolfStatic(WOLF_RUN, WOLF_IDLE, WOLF_EDGE_X, BASELINE_Y)
+    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
     running = True
     while running:
@@ -364,8 +309,10 @@ def main():
         keys = pygame.key.get_pressed()
 
         if on_vine:
+            # switch to climbing animation frames
+            player.animate(player.climb_frames)
+
             climb_speed = player.speed * 0.6
-            slide_speed = 2.0
             moving_vertically = False
 
             if keys[pygame.K_w]:
@@ -378,55 +325,38 @@ def main():
                 player.vel_y = 0
                 player.airborne = False
                 moving_vertically = True
-                
 
-            # Prevent clipping through platforms while climbing
+            # Prevent clipping while climbing
             player.rect.midbottom = (int(player.x), int(player.y))
             for _, rect in world_instance.obstacle_list:
                 if player.rect.colliderect(rect):
-                    if keys[pygame.K_w]:  # climbing up into a ceiling
+                    if keys[pygame.K_w]:
                         player.rect.top = rect.bottom
                         player.y = player.rect.midbottom[1]
-                    elif keys[pygame.K_s]:  # climbing down into floor
+                    elif keys[pygame.K_s]:
                         player.rect.bottom = rect.top
                         player.y = player.rect.midbottom[1]
 
-            # If not pressing up/down, she starts to fall normally
             if not moving_vertically:
                 player.airborne = True
-
-        else:
-            # Not on a vine — normal physics apply
-            pass
-
-
-
 
         # --- Check for deadly block (tile_index 14) collision ---
         for _, rect in world_instance.kill_list:
             if player.rect.colliderect(rect):
-                # Reset player to start position
                 player.x = 100
                 player.y = BASELINE_Y
                 player.vel_y = 0
                 player.airborne = False
-                scroll = 0  # optional: reset camera to beginning
-                break  # stop checking once hit
+                scroll = 0
+                break
 
         # --- Draw player ---
         player.draw(screen, scroll)
-
-
-        # --- Update wolf ---
-        wolf.set_running(dx)
-        wolf.update()
-        wolf.draw(screen)
 
         pygame.display.flip()
 
     pygame.quit()
     sys.exit()
-
 
 if __name__=="__main__":
     main()
