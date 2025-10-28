@@ -88,6 +88,7 @@ class World:
         self.tile_list = []
         self.obstacle_list = []
         self.kill_list = [] 
+        self.vine_list = []
 
     def process_data(self, data):
         self.tile_list = []
@@ -118,7 +119,17 @@ class World:
 
                 #Lethal (top water)
                 if tile_index == 14:
-                    self.kill_list.append((img, rect))
+                    # Expand water kill zone upward so partial water still kills
+                    kill_rect = rect.copy()
+                    kill_rect.y -= int(TILE_SIZE * 0.025)  # extend 30% of tile height upward
+                    kill_rect.height += int(TILE_SIZE * 0.3)
+                    self.kill_list.append((img, kill_rect))
+
+
+                # climbable vines
+                if 120 <= tile_index <= 123:
+                     self.vine_list.append((img, rect))
+
 
     def draw(self, surf, scroll):
         for img, rect in self.tile_list:
@@ -170,22 +181,26 @@ class Player(pygame.sprite.Sprite):
         self.rect.midbottom = (int(self.x), int(self.y))
         for _, rect in obstacles:
             if self.rect.colliderect(rect):
-                if dx > 0:
-                    # try to "step up" a little instead of getting stuck or passing through
-                    if self.rect.bottom - rect.top < TILE_SIZE * 0.4:
+                if dx > 0:  # moving right
+                    # Step-up test: is there room to step onto this block?
+                    step_height = rect.top - self.rect.bottom
+                    if 0 < step_height <= TILE_SIZE * 0.3:  # small ledge
                         self.rect.bottom = rect.top
                         self.vel_y = 0
                         self.airborne = False
                     else:
                         self.rect.right = rect.left
-                elif dx < 0:
-                    if self.rect.bottom - rect.top < TILE_SIZE * 0.4:
+                elif dx < 0:  # moving left
+                    step_height = rect.top - self.rect.bottom
+                    if 0 < step_height <= TILE_SIZE * 0.3:
                         self.rect.bottom = rect.top
                         self.vel_y = 0
                         self.airborne = False
                     else:
                         self.rect.left = rect.right
+                # Sync float position
                 self.x = self.rect.midbottom[0]
+
 
 
         # ----------------
@@ -233,7 +248,12 @@ class Player(pygame.sprite.Sprite):
         self.x = float(self.rect.midbottom[0])
         self.y = float(self.rect.midbottom[1])
 
-
+    def on_vine(self, vines):
+        """Check if player is touching any vine tile."""
+        for _, r in vines:
+            if self.rect.colliderect(r):
+                return True
+        return False
 
     def draw(self, surf, scroll):
         # Draw the player with horizontal scroll offset
@@ -338,6 +358,49 @@ def main():
         world_instance.draw(screen, scroll)
         # --- Update player (with collision) ---
         player.move_and_animate(dx, world_instance.obstacle_list)
+
+        # --- Vines: climbing mechanic ---
+        on_vine = player.on_vine(world_instance.vine_list)
+        keys = pygame.key.get_pressed()
+
+        if on_vine:
+            climb_speed = player.speed * 0.6
+            slide_speed = 2.0
+            moving_vertically = False
+
+            if keys[pygame.K_w]:
+                player.y -= climb_speed
+                player.vel_y = 0
+                player.airborne = False
+                moving_vertically = True
+            elif keys[pygame.K_s]:
+                player.y += climb_speed
+                player.vel_y = 0
+                player.airborne = False
+                moving_vertically = True
+                
+
+            # Prevent clipping through platforms while climbing
+            player.rect.midbottom = (int(player.x), int(player.y))
+            for _, rect in world_instance.obstacle_list:
+                if player.rect.colliderect(rect):
+                    if keys[pygame.K_w]:  # climbing up into a ceiling
+                        player.rect.top = rect.bottom
+                        player.y = player.rect.midbottom[1]
+                    elif keys[pygame.K_s]:  # climbing down into floor
+                        player.rect.bottom = rect.top
+                        player.y = player.rect.midbottom[1]
+
+            # If not pressing up/down, she starts to fall normally
+            if not moving_vertically:
+                player.airborne = True
+
+        else:
+            # Not on a vine — normal physics apply
+            pass
+
+
+
 
         # --- Check for deadly block (tile_index 14) collision ---
         for _, rect in world_instance.kill_list:

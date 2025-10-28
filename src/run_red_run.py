@@ -209,34 +209,17 @@ class Player(pygame.sprite.Sprite):
         surf.blit(pygame.transform.flip(self.image, self.flip, False),
                   (self.rect.x - scroll, self.rect.y))
 
-# ----------------------------
-# AUDIO (game)
-# ----------------------------
-GAME_MUSIC = ASSETS_ROOT / "game_loop.ogg"
-def play_game_music():
-    try:
-        if GAME_MUSIC.is_file():
-            pygame.mixer.music.load(str(GAME_MUSIC))
-            pygame.mixer.music.set_volume(0.7)
-            pygame.mixer.music.play(-1, start=0.0)
-    except Exception:
-        pass
+# --- Player Setup (simple rectangle placeholder) ---
+player_rect = pygame.Rect(100, SCREEN_HEIGHT - TILE_SIZE * 2, TILE_SIZE, TILE_SIZE * 2)
+player_vel_y = 0
+on_ground = False
+GRAVITY = 1.5
+MOVE_SPEED = 5
+JUMP_FORCE = 12
 
-# ----------------------------
-# MAIN LOOP
-# ----------------------------
-def main():
-    if LEVEL_FILE.exists():
-        level_data = json.loads(Path(LEVEL_FILE).read_text())
-    else:
-        level_data = []
-
-    world = World()
-    world.process_data(level_data)
-
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET, speed=6)
-    scroll = 0
-    moving_left = moving_right = False
+# --- Game State ---
+load_level(level)
+moving_left = moving_right = False
 
     play_game_music()
 
