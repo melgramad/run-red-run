@@ -45,7 +45,7 @@ TILE_SIZE = SCREEN_HEIGHT // ROWS
 scroll_left = False
 scroll_right = False
 scroll = 0
-scroll_speed = 15
+scroll_speed = 25
 
 tile_scale = 1.0
 scale_step = 0.1
@@ -134,7 +134,7 @@ save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
 
 
 def draw_bg():
-    for i in range(20):
+    for i in range(17):
         offset_x = (i * sky_img.get_width()) - scroll
         screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
         screen.blit(
@@ -202,7 +202,9 @@ while run:
         scroll -= scroll_speed
     if scroll_right:
         scroll += scroll_speed
-    scroll = max(0, min(scroll, (sky_img.get_width() * 50) - SCREEN_WIDTH))
+    MAX_SCROLL = 11500
+    scroll = max(0, min(scroll, MAX_SCROLL))
+    #scroll = max(0, min(scroll, (sky_img.get_width() * 45) - SCREEN_WIDTH))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
