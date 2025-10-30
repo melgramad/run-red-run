@@ -16,7 +16,7 @@ def play_game_music():
             pygame.mixer.init()
             pygame.mixer.music.load(str(GAME_MUSIC))
             pygame.mixer.music.set_volume(0.8)
-            pygame.mixer.music.play(-1, fade_ms=4000)  # Fade in over 4 sec, loop forever
+            pygame.mixer.music.play(-1, fade_ms=4000)
             print("Now playing:", GAME_MUSIC.name)
         else:
             print("Music not found:", GAME_MUSIC)
@@ -97,8 +97,9 @@ PLAYER_SCALE = 2.0
 PLAYER_IDLE_FRAMES = load_frames([ASSETS_ROOT / f"red_idle_{i}.png" for i in range(1,9)], PLAYER_SCALE)
 PLAYER_RUN         = load_frames([ASSETS_ROOT / f"red_run_{i}.png"  for i in range(1,24)], PLAYER_SCALE)
 PLAYER_CLIMB       = load_frames([ASSETS_ROOT / f"red_wallslide_{i}.png" for i in range(1,5)], PLAYER_SCALE)
-PLAYER_JUMP        = load_frames([ASSETS_ROOT / f"red_jump_{i}.png" for i in range(1,12)], PLAYER_SCALE)
-PLAYER_TURN        = load_frames([ASSETS_ROOT / f"red_turn_{i}.png" for i in range(1,5)], PLAYER_SCALE)
+PLAYER_JUMP        = load_frames([ASSETS_ROOT / f"red_jump_{i}.png" for i in range(1,13)], PLAYER_SCALE)
+PLAYER_TURN        = load_frames([ASSETS_ROOT / f"red_turn_{i}.png" for i in range(1,3)], PLAYER_SCALE)
+
 print("Jump frames loaded:", len(PLAYER_JUMP))
 
 # ----------------------------
@@ -158,6 +159,10 @@ class Player(pygame.sprite.Sprite):
         self.climb_frames = climb_frames
         self.jump_frames = jump_frames
         self.turn_frames = turn_frames
+        self.turning = False
+        self.turn_start_time = 0
+        self.turn_duration = 300
+
         self.frame_index = 0
         self.image = self.idle_frames[0] if idle_frames else pygame.Surface((64,64))
         self.rect = self.image.get_rect()
@@ -179,6 +184,7 @@ class Player(pygame.sprite.Sprite):
             self.airborne = True
 
     def move_and_animate(self, dx, obstacles):
+        # Horizontal movement
         self.x += dx
         self.rect.midbottom = (int(self.x), int(self.y))
         for _, rect in obstacles:
@@ -201,6 +207,7 @@ class Player(pygame.sprite.Sprite):
                         self.rect.left = rect.right
                 self.x = self.rect.midbottom[0]
 
+        # Vertical movement
         self.vel_y += GRAVITY
         self.y += self.vel_y
         self.rect.midbottom = (int(self.x), int(self.y))
@@ -215,12 +222,28 @@ class Player(pygame.sprite.Sprite):
                     self.vel_y = 0
                 self.y = self.rect.midbottom[1]
 
-        if self.airborne:
+        # Direction turn detection
+        if dx < 0 and not self.flip:
+            self.turning = True
+            self.turn_start_time = pygame.time.get_ticks()
+            self.flip = True
+        elif dx > 0 and self.flip:
+            self.turning = True
+            self.turn_start_time = pygame.time.get_ticks()
+            self.flip = False
+
+        # Animation selection
+        if self.turning:
+            seq = self.turn_frames
+            if pygame.time.get_ticks() - self.turn_start_time > self.turn_duration:
+                self.turning = False
+        elif self.airborne:
             seq = self.jump_frames
         elif dx != 0:
             seq = self.run_frames
         else:
             seq = self.idle_frames
+
         self.animate(seq)
 
     def animate(self, seq):
@@ -248,41 +271,9 @@ class Player(pygame.sprite.Sprite):
             if self.rect.colliderect(r):
                 return True
         return False
-    
-    def update(self, keys, tiles):
-        on_vine = False
-
-        # Check if touching any vine tile
-        for tile in tiles:
-            if tile.type == "vine" and self.rect.colliderect(tile.rect):
-                on_vine = True
-                break
-
-        if on_vine:
-            # Disable gravity while climbing
-            self.vel_y = 0
-
-            if keys[pygame.K_UP]:
-                self.rect.y -= 4  # climb speed
-            elif keys[pygame.K_DOWN]:
-                self.rect.y += 4  # climb down
-            else:
-                # no input — simulate gentle slide or stay in place
-                self.vel_y = 1  # slight downward pull
-
-        else:
-            # normal movement with gravity
-            self.vel_y += GRAVITY
-            self.rect.y += self.vel_y
-
-        # --- Handle collisions with solid platforms ---
-        for tile in tiles:
-            if tile.type == "solid" and self.rect.colliderect(tile.rect):
-                if self.vel_y > 0:  # falling
-                    self.rect.bottom 
 
     def draw(self, surf, scroll):
-         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
+        surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
 
 # ----------------------------
 # MAIN LOOP
@@ -302,7 +293,7 @@ def main():
     world_instance = World()
     world_instance.process_data(level_data)
 
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
+    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
     running = True
     while running:
@@ -323,6 +314,7 @@ def main():
 
         dx = (-player.speed if moving_left else player.speed if moving_right else 0)
 
+        # Camera scroll
         screen_center_x = SCREEN_WIDTH // 2
         player_screen_x = player.x - scroll
         if player_screen_x > screen_center_x and dx > 0:
@@ -339,9 +331,11 @@ def main():
             screen.blit(pine1_img, (offset_x - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100))
             screen.blit(pine2_img, (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20))
 
+        # World and player
         world_instance.draw(screen, scroll)
         player.move_and_animate(dx, world_instance.obstacle_list)
 
+        # Vine climbing
         on_vine = player.on_vine(world_instance.vine_list)
         keys = pygame.key.get_pressed()
         if on_vine:
@@ -370,6 +364,7 @@ def main():
             if not moving_vertically:
                 player.airborne = True
 
+        # Deadly tiles reset
         for _, rect in world_instance.kill_list:
             if player.rect.colliderect(rect):
                 player.x = 100
