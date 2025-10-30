@@ -97,6 +97,9 @@ PLAYER_SCALE = 2.0
 PLAYER_IDLE_FRAMES = load_frames([ASSETS_ROOT / f"red_idle_{i}.png" for i in range(1,9)], PLAYER_SCALE)
 PLAYER_RUN         = load_frames([ASSETS_ROOT / f"red_run_{i}.png"  for i in range(1,24)], PLAYER_SCALE)
 PLAYER_CLIMB       = load_frames([ASSETS_ROOT / f"red_wallslide_{i}.png" for i in range(1,5)], PLAYER_SCALE)
+PLAYER_JUMP        = load_frames([ASSETS_ROOT / f"red_jump_{i}.png" for i in range(1,12)], PLAYER_SCALE)
+PLAYER_TURN        = load_frames([ASSETS_ROOT / f"red_turn_{i}.png" for i in range(1,5)], PLAYER_SCALE)
+print("Jump frames loaded:", len(PLAYER_JUMP))
 
 # ----------------------------
 # WORLD
@@ -148,11 +151,13 @@ BASELINE_Y = SCREEN_HEIGHT // 2
 PLAYER_FOOT_OFFSET = 50
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, idle_frames, run_frames, climb_frames, x, baseline_y, foot_offset=0, speed=5):
+    def __init__(self, idle_frames, run_frames, climb_frames, jump_frames, turn_frames, x, baseline_y, foot_offset=0, speed=5):
         super().__init__()
         self.idle_frames = idle_frames
         self.run_frames = run_frames
         self.climb_frames = climb_frames
+        self.jump_frames = jump_frames
+        self.turn_frames = turn_frames
         self.frame_index = 0
         self.image = self.idle_frames[0] if idle_frames else pygame.Surface((64,64))
         self.rect = self.image.get_rect()
@@ -210,15 +215,19 @@ class Player(pygame.sprite.Sprite):
                     self.vel_y = 0
                 self.y = self.rect.midbottom[1]
 
-        seq = self.run_frames if dx != 0 or self.airborne else self.idle_frames
+        if self.airborne:
+            seq = self.jump_frames
+        elif dx != 0:
+            seq = self.run_frames
+        else:
+            seq = self.idle_frames
         self.animate(seq)
 
     def animate(self, seq):
-           # Adjust frame rate dynamically
         if seq == self.run_frames:
-          self.frame_time_ms = 1000 // 24   # Faster while running
+            self.frame_time_ms = 1000 // 24
         else:
-          self.frame_time_ms = 1000 // 12   # Normal for idle / climb
+            self.frame_time_ms = 1000 // 12
         if seq != getattr(self, "_current_seq", None):
             self.frame_index = 0
             self._current_seq = seq
@@ -250,7 +259,7 @@ def main():
     scroll = 0
     moving_left = moving_right = False
 
-    play_game_music()  # Background music starts here
+    play_game_music()
 
     if LEVEL_FILE.exists():
         with open(LEVEL_FILE, "r") as f:
@@ -261,7 +270,7 @@ def main():
     world_instance = World()
     world_instance.process_data(level_data)
 
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
+    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
     running = True
     while running:
@@ -341,7 +350,6 @@ def main():
         player.draw(screen, scroll)
         pygame.display.flip()
 
-    # Fade out and clean up
     pygame.mixer.music.fadeout(2000)
     pygame.quit()
     sys.exit()
