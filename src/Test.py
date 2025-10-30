@@ -164,7 +164,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = speed
         self.vel_y = 0.0
         self.airborne = False
-        self.frame_time_ms = 1000 // 12
+        self.frame_time_ms = 1000 // 24
         self._last_update = pygame.time.get_ticks()
         self._current_seq = self.idle_frames
 
@@ -214,6 +214,11 @@ class Player(pygame.sprite.Sprite):
         self.animate(seq)
 
     def animate(self, seq):
+           # Adjust frame rate dynamically
+        if seq == self.run_frames:
+          self.frame_time_ms = 1000 // 24   # Faster while running
+        else:
+          self.frame_time_ms = 1000 // 12   # Normal for idle / climb
         if seq != getattr(self, "_current_seq", None):
             self.frame_index = 0
             self._current_seq = seq
