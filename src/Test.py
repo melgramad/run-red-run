@@ -179,8 +179,10 @@ class Player(pygame.sprite.Sprite):
             self.airborne = True
 
     def move_and_animate(self, dx, obstacles):
+        #horizontal movement
         self.x += dx
         self.rect.midbottom = (int(self.x), int(self.y))
+        
         for _, rect in obstacles:
             if self.rect.colliderect(rect):
                 if dx > 0:
