@@ -74,6 +74,21 @@ save_btn_img = pygame.transform.scale(save_btn_img, (100, 50))
 load_btn_img = pygame.image.load(str(LOAD_BTN)).convert_alpha()
 load_btn_img = pygame.transform.scale(load_btn_img, (100, 50))
 
+GAME_MUSIC = Path(r"C:\Dev\KingdomDance.m4a")
+
+def play_game_music():
+    try:
+        if GAME_MUSIC.exists():
+            pygame.mixer.music.load(str(GAME_MUSIC))
+            pygame.mixer.music.set_volume(0.8)
+            pygame.mixer.music.play(-1, start=0.0)  # loops until exit
+        else:
+            print("Game music not found:", GAME_MUSIC)
+    except Exception as e:
+        print("Audio error:", e)
+
+
+
 class TileButton:
     def __init__(self, image, x, y, size, index):
         self.image = pygame.transform.scale(image, (size, size))

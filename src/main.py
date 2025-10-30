@@ -110,7 +110,7 @@ def main():
     exit_rect = pygame.Rect(0, 0, 240, 56)
     exit_rect.center = (SCREEN_WIDTH//2, SCREEN_HEIGHT//3 + 80)
 
-    idle = load_frames("red_idle_", 1, 8, scale=2.0)
+    idle = load_frames("red_idle_", 1, 8, scale=2.8)
     menu_red = PlayerMenu(idle, x=SCREEN_WIDTH//2, baseline_y=SCREEN_HEIGHT//2 + 220)
 
     play_menu_music()
