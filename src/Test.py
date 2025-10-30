@@ -239,9 +239,41 @@ class Player(pygame.sprite.Sprite):
             if self.rect.colliderect(r):
                 return True
         return False
+    
+    def update(self, keys, tiles):
+        on_vine = False
+
+        # Check if touching any vine tile
+        for tile in tiles:
+            if tile.type == "vine" and self.rect.colliderect(tile.rect):
+                on_vine = True
+                break
+
+        if on_vine:
+            # Disable gravity while climbing
+            self.vel_y = 0
+
+            if keys[pygame.K_UP]:
+                self.rect.y -= 4  # climb speed
+            elif keys[pygame.K_DOWN]:
+                self.rect.y += 4  # climb down
+            else:
+                # no input — simulate gentle slide or stay in place
+                self.vel_y = 1  # slight downward pull
+
+        else:
+            # normal movement with gravity
+            self.vel_y += GRAVITY
+            self.rect.y += self.vel_y
+
+        # --- Handle collisions with solid platforms ---
+        for tile in tiles:
+            if tile.type == "solid" and self.rect.colliderect(tile.rect):
+                if self.vel_y > 0:  # falling
+                    self.rect.bottom 
 
     def draw(self, surf, scroll):
-        surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
+         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
 
 # ----------------------------
 # MAIN LOOP
