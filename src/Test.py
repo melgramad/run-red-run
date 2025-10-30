@@ -270,7 +270,7 @@ class Player(pygame.sprite.Sprite):
                 self.rect.y += 4  # climb down
             else:
                 # no input — simulate gentle slide or stay in place
-                self.vel_y = 1  # slight downward pull
+                self.vel_y = .01  # slight downward pull
 
         else:
             # normal movement with gravity
