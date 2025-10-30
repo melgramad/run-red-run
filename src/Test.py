@@ -8,7 +8,7 @@ import json
 # ----------------------------
 # MUSIC
 # ----------------------------
-GAME_MUSIC = Path(r"C:\Dev\KingdomDance.mp3")
+GAME_MUSIC = Path(r"C:\Dev\KingdomDance.m4a")
 
 def play_game_music():
     try:
