@@ -22,14 +22,19 @@ pygame.display.set_caption("Run Red, Run!")
 clock = pygame.time.Clock()
 
 # ----------------------------
-# UI ELEMENTS
+# FONT SETUP (Mystical Style)
 # ----------------------------
-def _font(sz, bold=False): 
-    return pygame.font.SysFont("comic sans ms", sz, bold=bold)
+FONT_PATH = ASSETS_ROOT / "fonts" / "Enchanted Land.otf"  # <--- place your font here
+
+def _font(sz, bold=False):
+    return pygame.font.Font(str(FONT_PATH), sz)
 
 TITLE = _font(64)
 BTN = _font(36)
 
+# ----------------------------
+# UI ELEMENTS
+# ----------------------------
 def draw_button(surf, rect, text, mouse_pos):
     hovered = rect.collidepoint(mouse_pos)
     base = (60, 60, 60) if not hovered else (90, 90, 90)
@@ -57,10 +62,13 @@ def load_frames(prefix, start, end, scale=2.0):
         try:
             img = pygame.image.load(str(p)).convert_alpha()
             if scale != 1.0:
-                img = pygame.transform.scale(img, (int(img.get_width()*scale), int(img.get_height()*scale)))
+                img = pygame.transform.scale(
+                    img,
+                    (int(img.get_width() * scale), int(img.get_height() * scale)),
+                )
             frames.append(img)
         except Exception:
-            frames.append(_placeholder(int(32*scale), int(32*scale), f"{prefix}{i}"))
+            frames.append(_placeholder(int(32 * scale), int(32 * scale), f"{prefix}{i}"))
     return frames if frames else [_placeholder(64, 64, "no_frames")]
 
 class PlayerMenu(pygame.sprite.Sprite):
@@ -75,7 +83,8 @@ class PlayerMenu(pygame.sprite.Sprite):
         self.x, self.y = float(self.rect.centerx), float(self.rect.bottom)
 
     def update(self):
-        if not self.frames: return
+        if not self.frames:
+            return
         now = pygame.time.get_ticks()
         if now - self.last >= self.step:
             self.last = now
@@ -87,7 +96,7 @@ class PlayerMenu(pygame.sprite.Sprite):
         surf.blit(self.image, self.rect)
 
 # ----------------------------
-# AUDIO (your same file)
+# AUDIO
 # ----------------------------
 MENU_MUSIC = ASSETS_ROOT / "Video-Project.ogg"
 
@@ -106,12 +115,12 @@ def play_menu_music():
 def main():
     title = TITLE.render("Run Red, Run!", True, (230, 230, 230))
     start_rect = pygame.Rect(0, 0, 240, 56)
-    start_rect.center = (SCREEN_WIDTH//2, SCREEN_HEIGHT//3)
+    start_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3)
     exit_rect = pygame.Rect(0, 0, 240, 56)
-    exit_rect.center = (SCREEN_WIDTH//2, SCREEN_HEIGHT//3 + 80)
+    exit_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + 80)
 
     idle = load_frames("red_idle_", 1, 8, scale=2.8)
-    menu_red = PlayerMenu(idle, x=SCREEN_WIDTH//2, baseline_y=SCREEN_HEIGHT//2 + 220)
+    menu_red = PlayerMenu(idle, x=SCREEN_WIDTH // 2, baseline_y=SCREEN_HEIGHT // 2 + 220)
 
     play_menu_music()
 
@@ -123,8 +132,9 @@ def main():
             elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                 if start_rect.collidepoint(e.pos):
                     pygame.mixer.music.stop()
-                    # direct launch
-                    spec = importlib.util.spec_from_file_location("BG", (Path(__file__).parent / "BG.py"))
+                    spec = importlib.util.spec_from_file_location(
+                        "BG", (Path(__file__).parent / "BG.py")
+                    )
                     BG = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(BG)
                     BG.main()
@@ -133,7 +143,7 @@ def main():
                     running = False
 
         screen.fill(MENU_BG)
-        screen.blit(title, title.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//6)))
+        screen.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 6)))
         mp = pygame.mouse.get_pos()
         draw_button(screen, start_rect, "Start", mp)
         draw_button(screen, exit_rect, "Exit", mp)
