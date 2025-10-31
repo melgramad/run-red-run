@@ -409,6 +409,7 @@ class FadeDown:
     def draw(self, surf):
         if self.active:
             surf.blit(self.surface, (0, 0), area=pygame.Rect(0, 0, self.surface.get_width(), self.height))
+            
 
 # ----------------------------
 # MAIN LOOP
@@ -564,14 +565,16 @@ def main():
         if fade.done and not showed_complete:
             showed_complete = True
 
+        # Draw Level Complete text
         if showed_complete:
             title_font = pygame.font.SysFont("arial", 60, bold=True)
             msg = title_font.render("Level #1 Complete!", True, (255, 255, 255))
             rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN) // 2, (SCREEN_HEIGHT + LOWER_MARGIN) // 2))
             screen.blit(msg, rect)
+        else:
+        # Only draw player if level is not finished
+         player.draw(screen, scroll)
 
-        # Draw player every frame (even when dead, to keep last pose)
-        player.draw(screen, scroll)
 
         # Wolf howl after 7s (play once)
         if sfx.get("wolfhowl") and pygame.time.get_ticks() - wolf_timer > 7000:
