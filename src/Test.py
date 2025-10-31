@@ -100,8 +100,6 @@ PLAYER_CLIMB       = load_frames([ASSETS_ROOT / f"red_wallslide_{i}.png" for i i
 PLAYER_JUMP        = load_frames([ASSETS_ROOT / f"red_jump_{i}.png" for i in range(1,13)], PLAYER_SCALE)
 PLAYER_TURN        = load_frames([ASSETS_ROOT / f"red_turn_{i}.png" for i in range(1,3)], PLAYER_SCALE)
 
-print("Jump frames loaded:", len(PLAYER_JUMP))
-
 # ----------------------------
 # WORLD
 # ----------------------------
@@ -164,7 +162,7 @@ class Player(pygame.sprite.Sprite):
         self.turn_duration = 300
 
         self.frame_index = 0
-        self.image = self.idle_frames[0] if idle_frames else pygame.Surface((64,64))
+        self.image = self.idle_frames[0]
         self.rect = self.image.get_rect()
         self.baseline_y = baseline_y + foot_offset
         self.x = float(x)
@@ -184,7 +182,7 @@ class Player(pygame.sprite.Sprite):
             self.airborne = True
 
     def move_and_animate(self, dx, obstacles):
-        # Horizontal movement
+        # Horizontal
         self.x += dx
         self.rect.midbottom = (int(self.x), int(self.y))
         for _, rect in obstacles:
@@ -207,7 +205,7 @@ class Player(pygame.sprite.Sprite):
                         self.rect.left = rect.right
                 self.x = self.rect.midbottom[0]
 
-        # Vertical movement
+        # Vertical
         self.vel_y += GRAVITY
         self.y += self.vel_y
         self.rect.midbottom = (int(self.x), int(self.y))
@@ -222,7 +220,7 @@ class Player(pygame.sprite.Sprite):
                     self.vel_y = 0
                 self.y = self.rect.midbottom[1]
 
-        # Direction turn detection
+        # Turn
         if dx < 0 and not self.flip:
             self.turning = True
             self.turn_start_time = pygame.time.get_ticks()
@@ -232,7 +230,7 @@ class Player(pygame.sprite.Sprite):
             self.turn_start_time = pygame.time.get_ticks()
             self.flip = False
 
-        # Animation selection
+        # Anim state
         if self.turning:
             seq = self.turn_frames
             if pygame.time.get_ticks() - self.turn_start_time > self.turn_duration:
@@ -276,6 +274,85 @@ class Player(pygame.sprite.Sprite):
         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
 
 # ----------------------------
+# DIALOG + FADE CLASSES
+# ----------------------------
+class DialogBubble:
+    def __init__(self, text, font, color, world_x, world_y):
+        self.text = text
+        self.font = font
+        self.color = color
+        self.world_x = world_x
+        self.world_y = world_y
+        self.current_text = ""
+        self.index = 0
+        self.active = False
+        self.last_update = 0
+        self.delay = 60
+
+    def start(self):
+        self.active = True
+        self.index = 0
+        self.current_text = ""
+        self.last_update = pygame.time.get_ticks()
+
+    def update(self):
+        if self.active and self.index < len(self.text):
+            now = pygame.time.get_ticks()
+            if now - self.last_update > self.delay:
+                self.current_text += self.text[self.index]
+                self.index += 1
+                self.last_update = now
+
+    def draw(self, surf, scroll):
+        if not self.active:
+            return
+        x = int(self.world_x - scroll)
+        y = int(self.world_y)
+        bubble_rect = pygame.Rect(x - 20, y - 70, 320, 60)
+        pygame.draw.rect(surf, (255, 255, 255), bubble_rect, border_radius=12)
+        pygame.draw.rect(surf, (0, 0, 0), bubble_rect, 2, border_radius=12)
+        pygame.draw.polygon(
+            surf, (255, 255, 255),
+            [(bubble_rect.x + 40, bubble_rect.bottom),
+             (bubble_rect.x + 60, bubble_rect.bottom + 20),
+             (bubble_rect.x + 80, bubble_rect.bottom)]
+        )
+        pygame.draw.polygon(
+            surf, (0, 0, 0),
+            [(bubble_rect.x + 40, bubble_rect.bottom),
+             (bubble_rect.x + 60, bubble_rect.bottom + 20),
+             (bubble_rect.x + 80, bubble_rect.bottom)], 2
+        )
+        txt_surf = self.font.render(self.current_text, True, self.color)
+        surf.blit(txt_surf, (bubble_rect.x + 10, bubble_rect.y + 15))
+
+class FadeEffect:
+    def __init__(self, w, h, speed=5):
+        self.surface = pygame.Surface((w, h))
+        self.surface.fill((0, 0, 0))
+        self.alpha = 0
+        self.speed = speed
+        self.active = False
+        self.done = False
+
+    def start(self):
+        self.active = True
+        self.alpha = 0
+        self.done = False
+
+    def update(self):
+        if self.active and not self.done:
+            self.alpha += self.speed
+            if self.alpha >= 255:
+                self.alpha = 255
+                self.done = True
+            self.surface.set_alpha(self.alpha)
+
+    def draw(self, surf):
+        if self.active:
+            surf.blit(self.surface, (0, 0))
+
+# ----------------------------
 # MAIN LOOP
 # ----------------------------
 def main():
@@ -295,6 +372,19 @@ def main():
 
     player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
+    font = pygame.font.SysFont("arial", 24, bold=True)
+    # --- Adjusted for actual house tile (index 105 at x=270, y=2) ---
+    HOUSE_ZONE_MIN = 269 * TILE_SIZE
+    HOUSE_ZONE_MAX = 272 * TILE_SIZE  # small zone around the house front
+    HOUSE_BUBBLE_X = 270 * TILE_SIZE + (TILE_SIZE * 1.0)  # centered near door
+    HOUSE_BUBBLE_Y = (-3 + 11.4) * TILE_SIZE - (TILE_SIZE * 1.9)# just above house
+
+    dialog = DialogBubble("Granny: Welcome dear, come in!", font, (0, 0, 0), HOUSE_BUBBLE_X, HOUSE_BUBBLE_Y)
+    fade = FadeEffect(SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN, speed=5)
+    end_sequence = False
+    showed_complete = False
+    idle_start_time = 0
+
     running = True
     while running:
         clock.tick(FPS)
@@ -312,9 +402,11 @@ def main():
                 if event.key == pygame.K_a: moving_left = False
                 if event.key == pygame.K_d: moving_right = False
 
-        dx = (-player.speed if moving_left else player.speed if moving_right else 0)
+        if not fade.active:
+            dx = (-player.speed if moving_left else player.speed if moving_right else 0)
+        else:
+            dx = 0
 
-        # Camera scroll
         screen_center_x = SCREEN_WIDTH // 2
         player_screen_x = player.x - scroll
         if player_screen_x > screen_center_x and dx > 0:
@@ -323,7 +415,7 @@ def main():
             scroll += dx
         scroll = max(0, scroll)
 
-        # Background
+        # Background layers
         for i in range(16):
             offset_x = i * sky_img.get_width()
             screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
@@ -331,7 +423,6 @@ def main():
             screen.blit(pine1_img, (offset_x - scroll * 0.7, SCREEN_HEIGHT - pine1_img.get_height() - 100))
             screen.blit(pine2_img, (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20))
 
-        # World and player
         world_instance.draw(screen, scroll)
         player.move_and_animate(dx, world_instance.obstacle_list)
 
@@ -364,7 +455,7 @@ def main():
             if not moving_vertically:
                 player.airborne = True
 
-        # Deadly tiles reset
+        # Kill reset
         for _, rect in world_instance.kill_list:
             if player.rect.colliderect(rect):
                 player.x = 100
@@ -373,6 +464,34 @@ def main():
                 player.airborne = False
                 scroll = 0
                 break
+
+        # --- Ending scene ---
+        if (not end_sequence) and (HOUSE_ZONE_MIN <= player.x <= HOUSE_ZONE_MAX):
+            end_sequence = True
+            moving_left = moving_right = False
+            idle_start_time = pygame.time.get_ticks()
+
+        if end_sequence and not dialog.active:
+            if pygame.time.get_ticks() - idle_start_time > 1000:  # wait 1 second before dialog
+                dialog.start()
+
+        if end_sequence:
+            dialog.update()
+            dialog.draw(screen, scroll)
+            if dialog.active and dialog.index >= len(dialog.text) and not fade.active:
+                fade.start()
+
+        fade.update()
+        fade.draw(screen)
+
+        if fade.done and not showed_complete:
+            showed_complete = True
+
+        if showed_complete:
+            title_font = pygame.font.SysFont("arial", 60, bold=True)
+            msg = title_font.render("Level #1 Complete!", True, (255, 255, 255))
+            rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN) // 2, (SCREEN_HEIGHT + LOWER_MARGIN) // 2))
+            screen.blit(msg, rect)
 
         player.draw(screen, scroll)
         pygame.display.flip()
