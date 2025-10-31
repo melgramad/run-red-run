@@ -13,7 +13,6 @@ GAME_MUSIC = Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\KingdomDance.mp3")
 def play_game_music():
     try:
         if GAME_MUSIC.exists():
-            pygame.mixer.init()
             pygame.mixer.music.load(str(GAME_MUSIC))
             pygame.mixer.music.set_volume(0.8)
             pygame.mixer.music.play(-1, fade_ms=4000)
@@ -22,6 +21,29 @@ def play_game_music():
             print("Music not found:", GAME_MUSIC)
     except Exception as e:
         print("Audio error:", e)
+
+# ----------------------------
+# SOUND EFFECTS (.WAV)
+# ----------------------------
+SFX_PATHS = {
+    "jump":      Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\jump.wav"),
+    "lose":      Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\lose.wav"),
+    "win":       Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\win.wav"),
+    "vineclimb": Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\vineclimb.wav"),
+    "wolfhowl":  Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\wolfhowl.wav"),
+}
+
+def load_sfx(path):
+    try:
+        if path.exists():
+            snd = pygame.mixer.Sound(str(path))
+            snd.set_volume(0.9)
+            return snd
+        else:
+            print("SFX file not found:", path)
+    except Exception as e:
+        print(f"SFX load error for {path}:", e)
+    return None
 
 # ----------------------------
 # SETTINGS
@@ -50,9 +72,17 @@ GAME_BG = (30, 30, 30)
 # INIT
 # ----------------------------
 pygame.init()
+# Robust mixer init for WAV SFX
+pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+print("Mixer initialized:", pygame.mixer.get_init())
+
 screen = pygame.display.set_mode((SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN))
 pygame.display.set_caption("Run Red, Run!")
 clock = pygame.time.Clock()
+
+# Load SFX AFTER mixer init
+sfx = {name: load_sfx(p) for name, p in SFX_PATHS.items()}
+print("Loaded SFX:", [name for name, snd in sfx.items() if snd])
 
 # ----------------------------
 # LOAD BACKGROUND
@@ -180,6 +210,7 @@ class Player(pygame.sprite.Sprite):
         if not self.airborne:
             self.vel_y = -JUMP_POWER
             self.airborne = True
+            if sfx.get("jump"): sfx["jump"].play()
 
     def move_and_animate(self, dx, obstacles):
         # Horizontal
@@ -352,6 +383,33 @@ class FadeEffect:
         if self.active:
             surf.blit(self.surface, (0, 0))
 
+# NEW: top-to-bottom fade for Game Over
+class FadeDown:
+    def __init__(self, w, h, speed=8):
+        self.surface = pygame.Surface((w, h))
+        self.surface.fill((0, 0, 0))
+        self.h = h
+        self.speed = speed
+        self.height = 0
+        self.active = False
+        self.done = False
+
+    def start(self):
+        self.active = True
+        self.done = False
+        self.height = 0
+
+    def update(self):
+        if self.active and not self.done:
+            self.height += self.speed
+            if self.height >= self.h:
+                self.height = self.h
+                self.done = True
+
+    def draw(self, surf):
+        if self.active:
+            surf.blit(self.surface, (0, 0), area=pygame.Rect(0, 0, self.surface.get_width(), self.height))
+
 # ----------------------------
 # MAIN LOOP
 # ----------------------------
@@ -360,6 +418,7 @@ def main():
     moving_left = moving_right = False
 
     play_game_music()
+    wolf_timer = pygame.time.get_ticks()
 
     if LEVEL_FILE.exists():
         with open(LEVEL_FILE, "r") as f:
@@ -373,17 +432,21 @@ def main():
     player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
     font = pygame.font.SysFont("arial", 24, bold=True)
-    # --- Adjusted for actual house tile (index 105 at x=270, y=2) ---
     HOUSE_ZONE_MIN = 269 * TILE_SIZE
-    HOUSE_ZONE_MAX = 272 * TILE_SIZE  # small zone around the house front
-    HOUSE_BUBBLE_X = 270 * TILE_SIZE + (TILE_SIZE * 1.0)  # centered near door
-    HOUSE_BUBBLE_Y = (-3 + 11.4) * TILE_SIZE - (TILE_SIZE * 1.9)# just above house
+    HOUSE_ZONE_MAX = 272 * TILE_SIZE
+    HOUSE_BUBBLE_X = 270 * TILE_SIZE + (TILE_SIZE * 1.0)
+    HOUSE_BUBBLE_Y = (-3 + 11.4) * TILE_SIZE - (TILE_SIZE * 1.9)
 
     dialog = DialogBubble("Granny: Welcome dear, come in!", font, (0, 0, 0), HOUSE_BUBBLE_X, HOUSE_BUBBLE_Y)
     fade = FadeEffect(SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN, speed=5)
     end_sequence = False
     showed_complete = False
     idle_start_time = 0
+
+    # Game-over state
+    dead = False
+    lose_fade = FadeDown(SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN, speed=10)
+    restart_button_rect = None
 
     running = True
     while running:
@@ -394,25 +457,32 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_a: moving_left = True
-                if event.key == pygame.K_d: moving_right = True
-                if event.key in (pygame.K_w, pygame.K_SPACE): player.try_jump()
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_a: moving_left = False
-                if event.key == pygame.K_d: moving_right = False
+            # Handle restart click even when dead
+            if event.type == pygame.MOUSEBUTTONDOWN and dead and restart_button_rect and restart_button_rect.collidepoint(event.pos):
+                # Restart whole level cleanly
+                main()
+                return
+            if not dead:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_a: moving_left = True
+                    if event.key == pygame.K_d: moving_right = True
+                    if event.key in (pygame.K_w, pygame.K_SPACE): player.try_jump()
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_a: moving_left = False
+                    if event.key == pygame.K_d: moving_right = False
 
-        if not fade.active:
+        if not fade.active and not dead:
             dx = (-player.speed if moving_left else player.speed if moving_right else 0)
         else:
             dx = 0
 
         screen_center_x = SCREEN_WIDTH // 2
         player_screen_x = player.x - scroll
-        if player_screen_x > screen_center_x and dx > 0:
-            scroll += dx
-        elif player_screen_x < screen_center_x and dx < 0:
-            scroll += dx
+        if not dead:
+            if player_screen_x > screen_center_x and dx > 0:
+                scroll += dx
+            elif player_screen_x < screen_center_x and dx < 0:
+                scroll += dx
         scroll = max(0, scroll)
 
         # Background layers
@@ -424,62 +494,69 @@ def main():
             screen.blit(pine2_img, (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20))
 
         world_instance.draw(screen, scroll)
-        player.move_and_animate(dx, world_instance.obstacle_list)
 
-        # Vine climbing
-        on_vine = player.on_vine(world_instance.vine_list)
-        keys = pygame.key.get_pressed()
-        if on_vine:
-            player.animate(player.climb_frames)
-            climb_speed = player.speed * 0.6
-            moving_vertically = False
-            if keys[pygame.K_w]:
-                player.y -= climb_speed
-                player.vel_y = 0
-                player.airborne = False
-                moving_vertically = True
-            elif keys[pygame.K_s]:
-                player.y += climb_speed
-                player.vel_y = 0
-                player.airborne = False
-                moving_vertically = True
-            player.rect.midbottom = (int(player.x), int(player.y))
-            for _, rect in world_instance.obstacle_list:
+        if not dead:
+            player.move_and_animate(dx, world_instance.obstacle_list)
+
+            # Vine climbing (SFX REMOVED; logic intact)
+            on_vine = player.on_vine(world_instance.vine_list)
+            keys = pygame.key.get_pressed()
+            if on_vine:
+                player.animate(player.climb_frames)
+                climb_speed = player.speed * 0.6
+                moving_vertically = False
+                if keys[pygame.K_w]:
+                    player.y -= climb_speed
+                    player.vel_y = 0
+                    player.airborne = False
+                    moving_vertically = True
+                    # (vine sound removed)
+                elif keys[pygame.K_s]:
+                    player.y += climb_speed
+                    player.vel_y = 0
+                    player.airborne = False
+                    moving_vertically = True
+                    # (vine sound removed)
+                player.rect.midbottom = (int(player.x), int(player.y))
+                for _, rect in world_instance.obstacle_list:
+                    if player.rect.colliderect(rect):
+                        if keys[pygame.K_w]:
+                            player.rect.top = rect.bottom
+                            player.y = player.rect.midbottom[1]
+                        elif keys[pygame.K_s]:
+                            player.rect.bottom = rect.top
+                            player.y = player.rect.midbottom[1]
+                if not moving_vertically:
+                    player.airborne = True
+
+            # Kill → GAME OVER flow
+            for _, rect in world_instance.kill_list:
                 if player.rect.colliderect(rect):
-                    if keys[pygame.K_w]:
-                        player.rect.top = rect.bottom
-                        player.y = player.rect.midbottom[1]
-                    elif keys[pygame.K_s]:
-                        player.rect.bottom = rect.top
-                        player.y = player.rect.midbottom[1]
-            if not moving_vertically:
-                player.airborne = True
+                    dead = True
+                    moving_left = moving_right = False
+                    pygame.mixer.music.stop()          # stop background music immediately
+                    if sfx.get("lose"): sfx["lose"].play()
+                    lose_fade.start()
+                    break
 
-        # Kill reset
-        for _, rect in world_instance.kill_list:
-            if player.rect.colliderect(rect):
-                player.x = 100
-                player.y = BASELINE_Y
-                player.vel_y = 0
-                player.airborne = False
-                scroll = 0
-                break
+            # --- Ending scene ---
+            if (not end_sequence) and (HOUSE_ZONE_MIN <= player.x <= HOUSE_ZONE_MAX):
+                if sfx.get("win"): 
+                    pygame.mixer.music.stop()          # stop background music on win start
+                    sfx["win"].play()
+                end_sequence = True
+                moving_left = moving_right = False
+                idle_start_time = pygame.time.get_ticks()
 
-        # --- Ending scene ---
-        if (not end_sequence) and (HOUSE_ZONE_MIN <= player.x <= HOUSE_ZONE_MAX):
-            end_sequence = True
-            moving_left = moving_right = False
-            idle_start_time = pygame.time.get_ticks()
+            if end_sequence and not dialog.active:
+                if pygame.time.get_ticks() - idle_start_time > 1000:
+                    dialog.start()
 
-        if end_sequence and not dialog.active:
-            if pygame.time.get_ticks() - idle_start_time > 1000:  # wait 1 second before dialog
-                dialog.start()
-
-        if end_sequence:
-            dialog.update()
-            dialog.draw(screen, scroll)
-            if dialog.active and dialog.index >= len(dialog.text) and not fade.active:
-                fade.start()
+            if end_sequence:
+                dialog.update()
+                dialog.draw(screen, scroll)
+                if dialog.active and dialog.index >= len(dialog.text) and not fade.active:
+                    fade.start()
 
         fade.update()
         fade.draw(screen)
@@ -493,7 +570,38 @@ def main():
             rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN) // 2, (SCREEN_HEIGHT + LOWER_MARGIN) // 2))
             screen.blit(msg, rect)
 
+        # Draw player every frame (even when dead, to keep last pose)
         player.draw(screen, scroll)
+
+        # Wolf howl after 7s (play once)
+        if sfx.get("wolfhowl") and pygame.time.get_ticks() - wolf_timer > 7000:
+            sfx["wolfhowl"].play()
+            sfx["wolfhowl"] = None
+
+        # --- GAME OVER overlay & restart (only when dead) ---
+        if dead:
+            # Top-down fade first
+            lose_fade.update()
+            lose_fade.draw(screen)
+
+            # Big GAME OVER on top (visible over fade)
+            go_font = pygame.font.SysFont("arial", 120, bold=True)  # swap to your pixel font if you have it
+            go_text = go_font.render("GAME OVER", True, (255, 0, 0))
+            go_rect = go_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN) // 2, (SCREEN_HEIGHT + LOWER_MARGIN) // 2 - 80))
+            screen.blit(go_text, go_rect)
+
+            # After fade finishes, show clickable button
+            if lose_fade.done:
+                btn_font = pygame.font.SysFont("arial", 48, bold=True)
+                btn_text = btn_font.render("Restart Level", True, (255, 255, 255))
+                btn_rect = btn_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN) // 2, (SCREEN_HEIGHT + LOWER_MARGIN) // 2 + 80))
+                pad = 20
+                bg_rect = btn_rect.inflate(pad * 2, pad * 2)
+                pygame.draw.rect(screen, (50, 50, 50), bg_rect, border_radius=12)
+                pygame.draw.rect(screen, (200, 200, 200), bg_rect, 2, border_radius=12)
+                screen.blit(btn_text, btn_rect)
+                restart_button_rect = bg_rect
+
         pygame.display.flip()
 
     pygame.mixer.music.fadeout(2000)
