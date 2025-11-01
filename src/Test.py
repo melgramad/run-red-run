@@ -139,6 +139,8 @@ class World:
         self.obstacle_list = []
         self.kill_list = []
         self.vine_list = []
+        self.sprint_list = []
+        self.jumpboost_list = []
 
     def process_data(self, data):
         self.tile_list = []
@@ -166,10 +168,26 @@ class World:
                     self.kill_list.append((img, kill_rect))
                 if 120 <= tile_index <= 123:
                     self.vine_list.append((img, rect))
+                # --- Sprint Power-up  ---
+                if tile_index == 113:
+                    self.sprint_list.append((img, rect))
+                # --- Jump Boost Power-up ---
+                if tile_index == 110:
+                    self.jumpboost_list.append((img, rect))
+
 
     def draw(self, surf, scroll):
         for img, rect in self.tile_list:
             surf.blit(img, (rect.x - scroll, rect.y))
+
+        # --- Sprint Power-up tiles ---
+        for img, rect in self.sprint_list:
+            surf.blit(img, (rect.x - scroll, rect.y))
+
+        # --- Jump Boost Power-up tiles ---
+        for img, rect in self.jumpboost_list:
+            surf.blit(img, (rect.x - scroll, rect.y))
+
 
 # ----------------------------
 # PLAYER CLASS
@@ -206,11 +224,26 @@ class Player(pygame.sprite.Sprite):
         self._last_update = pygame.time.get_ticks()
         self._current_seq = self.idle_frames
 
+        # --- Sprint Power-up ---
+        self.sprint_active = False
+        self.sprint_end_time = 0
+        self.base_speed = speed
+        self.gravity_scale = 1.0
+
+        # --- Jump Boost Power-up ---
+        self.jumpboost_active = False
+        self.jumpboost_end_time = 0
+        self.base_jump = JUMP_POWER
+
+
     def try_jump(self):
         if not self.airborne:
-            self.vel_y = -JUMP_POWER
+            jump_strength = self.base_jump * (1.5 if self.jumpboost_active else 1.0)
+            self.vel_y = -jump_strength
             self.airborne = True
-            if sfx.get("jump"): sfx["jump"].play()
+            if sfx.get("jump"):
+                sfx["jump"].play()
+
 
     def move_and_animate(self, dx, obstacles):
         # Horizontal
@@ -237,7 +270,7 @@ class Player(pygame.sprite.Sprite):
                 self.x = self.rect.midbottom[0]
 
         # Vertical
-        self.vel_y += GRAVITY
+        self.vel_y += GRAVITY * self.gravity_scale
         self.y += self.vel_y
         self.rect.midbottom = (int(self.x), int(self.y))
         for _, rect in obstacles:
@@ -300,6 +333,30 @@ class Player(pygame.sprite.Sprite):
             if self.rect.colliderect(r):
                 return True
         return False
+
+    # --- Sprint Power-up ---
+    def activate_sprint(self, duration_ms=4000):
+        self.sprint_active = True
+        self.speed = self.base_speed * 1.5  
+        self.gravity_scale = 0.7
+        self.sprint_end_time = pygame.time.get_ticks() + duration_ms
+
+    def update_sprint(self):
+        if self.sprint_active and pygame.time.get_ticks() > self.sprint_end_time:
+            self.sprint_active = False
+            self.speed = self.base_speed
+            self.gravity_scale = 1.0 
+
+    def activate_jumpboost(self, duration_ms=5000):
+        """Temporarily increase jump height."""
+        self.jumpboost_active = True
+        self.jumpboost_end_time = pygame.time.get_ticks() + duration_ms
+
+    def update_jumpboost(self):
+        """Deactivate boost when time runs out."""
+        if self.jumpboost_active and pygame.time.get_ticks() > self.jumpboost_end_time:
+            self.jumpboost_active = False
+
 
     def draw(self, surf, scroll):
         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
@@ -529,6 +586,27 @@ def main():
                             player.y = player.rect.midbottom[1]
                 if not moving_vertically:
                     player.airborne = True
+
+            # Sprint power-up collision
+            for (img, rect) in world_instance.sprint_list[:]:  
+                if player.rect.colliderect(rect):
+                    player.activate_sprint()
+                    if sfx.get("win"):  # change this to new powerup sound
+                        sfx["win"].play()
+                    world_instance.sprint_list.remove((img, rect))
+                    break
+            player.update_sprint()
+
+            # Jump Boost power-up collision
+            for (img, rect) in world_instance.jumpboost_list[:]:
+                if player.rect.colliderect(rect):
+                    player.activate_jumpboost()
+                    if sfx.get("win"):
+                        sfx["win"].play()  # change this to new powerup sound
+                    world_instance.jumpboost_list.remove((img, rect))
+                    break
+            player.update_jumpboost()
+
 
             # Kill → GAME OVER flow
             for _, rect in world_instance.kill_list:
