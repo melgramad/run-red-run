@@ -28,6 +28,7 @@ def play_game_music():
 SFX_PATHS = {
     "jump":      Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\jump.wav"),
     "lose":      Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\lose.wav"),
+    "powerup":   Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\powerup.wav"),
     "win":       Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\win.wav"),
     "vineclimb": Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\vineclimb.wav"),
     "wolfhowl":  Path(r"C:\Dev\orgsOfLangs\run-red-run\assets\sfx\wolfhowl.wav"),
@@ -688,8 +689,8 @@ def main():
             for (img, rect) in world_instance.sprint_list[:]:  
                 if player.rect.colliderect(rect):
                     player.activate_sprint()
-                    if sfx.get("win"):  # change this to new powerup sound
-                        sfx["win"].play()
+                    if sfx.get("powerup"):  # change this to new powerup sound
+                        sfx["powerup"].play()
 
             player.update_sprint()
 
@@ -697,8 +698,8 @@ def main():
             for (img, rect) in world_instance.jumpboost_list[:]:
                 if player.rect.colliderect(rect):
                     player.activate_jumpboost()
-                    if sfx.get("win"):
-                        sfx["win"].play()  # change this to new powerup sound
+                    if sfx.get("powerup"):
+                        sfx["powerup"].play()  # change this to new powerup sound
 
             player.update_jumpboost()
 
