@@ -134,6 +134,37 @@ PLAYER_JUMP        = load_frames([ASSETS_ROOT / f"red_jump_{i}.png" for i in ran
 PLAYER_TURN        = load_frames([ASSETS_ROOT / f"red_turn_{i}.png" for i in range(1,3)], PLAYER_SCALE)
 
 # ----------------------------
+# PARTICLE EFFECTS
+# ----------------------------
+class Particle:
+    def __init__(self, x, y, color, radius=4, lifetime=400):
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.color = color
+        self.lifetime = lifetime  # milliseconds
+        self.creation_time = pygame.time.get_ticks()
+        self.vel_x = random.uniform(-1.0, 1.0)
+        self.vel_y = random.uniform(-1.0, 1.0)
+        self.alpha = 255
+
+    def update(self):
+        # Move particle
+        self.x += self.vel_x
+        self.y += self.vel_y
+        # Fade out
+        elapsed = pygame.time.get_ticks() - self.creation_time
+        self.alpha = max(0, 255 * (1 - elapsed / self.lifetime))
+
+    def draw(self, surf, scroll):
+        if self.alpha <= 0:
+            return
+        surf_alpha = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(surf_alpha, (*self.color, int(self.alpha)), (self.radius, self.radius), self.radius)
+        surf.blit(surf_alpha, (self.x - self.radius - scroll, self.y - self.radius))
+
+
+# ----------------------------
 # WORLD
 # ----------------------------
 class World:
@@ -226,6 +257,8 @@ class Player(pygame.sprite.Sprite):
         self.frame_time_ms = 1000 // 24
         self._last_update = pygame.time.get_ticks()
         self._current_seq = self.idle_frames
+
+        self.particles =[]
 
         # --- Sprint Power-up ---
         self.sprint_active = False
@@ -362,6 +395,23 @@ class Player(pygame.sprite.Sprite):
 
 
     def draw(self, surf, scroll):
+        # --- Particle trail for active power-ups ---
+        if self.sprint_active or self.jumpboost_active:
+            # spawn 1-3 particles per frame
+            for _ in range(random.randint(1, 3)):
+                color = (0, 200, 0) if self.sprint_active else (200, 0, 0)
+                px = self.rect.centerx + random.randint(-10, 10)
+                py = self.rect.centery + random.randint(-5, 5)
+                self.particles.append(Particle(px, py, color, radius=random.randint(2, 4)))
+
+        # Update and draw particles
+        for particle in self.particles[:]:
+            particle.update()
+            particle.draw(surf, scroll)
+            if particle.alpha <= 0:
+                self.particles.remove(particle)
+
+        # --- Draw the player sprite ---
         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
 
 # ----------------------------
