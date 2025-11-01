@@ -196,6 +196,7 @@ class World:
 
                 if tile_index == 5 or tile_index == 3 or (tile_index>=129 and tile_index<=133) or (tile_index>=58 and tile_index<=93):
                     self.obstacle_list.append((img, rect))
+
                 if tile_index == 14:
                     kill_rect = rect.copy()
                     kill_rect.y -= int(TILE_SIZE * 0.025)
@@ -319,7 +320,8 @@ class Player(pygame.sprite.Sprite):
                 elif self.vel_y < 0:
                     self.rect.top = rect.bottom
                     self.vel_y = 0
-                self.y = self.rect.midbottom[1]
+                self.y = self.rect.midbottom[1] 
+
 
         # Turn
         if dx < 0 and not self.flip:
@@ -640,6 +642,16 @@ def main():
             elif player_screen_x < screen_center_x and dx < 0:
                 scroll += dx
         scroll = max(0, min(scroll, MAX_SCROLL))
+
+        # Prevent player from going off screen at level edges
+        if scroll <= 0 and player.x < SCREEN_WIDTH // 50:
+            player.x = SCREEN_WIDTH // 50
+        elif scroll >= MAX_SCROLL and player.x > MAX_SCROLL + SCREEN_WIDTH + 280:
+            player.x = MAX_SCROLL + SCREEN_WIDTH + 280
+
+        # Update player's rect to match new x position
+        player.rect.midbottom = (int(player.x), int(player.y))
+
 
         # Background layers
         for i in range(16):
