@@ -56,6 +56,9 @@ FPS = 60
 ROWS = 16
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 
+# Maximum scroll (end of level)
+MAX_SCROLL = 11500
+
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ASSETS_ROOT  = PROJECT_ROOT / "assets"
@@ -338,7 +341,7 @@ class Player(pygame.sprite.Sprite):
     def activate_sprint(self, duration_ms=4000):
         self.sprint_active = True
         self.speed = self.base_speed * 1.5  
-        self.gravity_scale = 0.7
+        self.gravity_scale = 0.8
         self.sprint_end_time = pygame.time.get_ticks() + duration_ms
 
     def update_sprint(self):
@@ -467,6 +470,50 @@ class FadeDown:
         if self.active:
             surf.blit(self.surface, (0, 0), area=pygame.Rect(0, 0, self.surface.get_width(), self.height))
             
+# ----------------------------
+# VISUAL POWER-UP TIMERS
+# ----------------------------
+def draw_powerup_timers(surf, player):
+    """Draw visual countdown bars for Sprint and Jump Boost powerups (top-right, with labels on left)."""
+    bar_width = 200
+    bar_height = 20
+    padding = 15
+    margin = 30
+    label_gap = 10  # space between label and bar
+
+    font = pygame.font.SysFont("arial", 18, bold=True)
+
+    # Base position — start near top-right
+    x = surf.get_width() - bar_width - margin
+    y = margin
+
+    # --- Sprint Timer (orange) ---
+    if player.sprint_active:
+        remaining = max(0, player.sprint_end_time - pygame.time.get_ticks())
+        ratio = remaining / 4000  # must match duration_ms from activate_sprint()
+
+        # Bar background + fill
+        pygame.draw.rect(surf, (60, 60, 60), (x, y, bar_width, bar_height), border_radius=6)
+        pygame.draw.rect(surf, (0, 200, 0), (x, y, int(bar_width * ratio), bar_height), border_radius=6)
+
+        # Label to the left of bar
+        text = font.render("Sprint", True, (255, 255, 255))
+        text_rect = text.get_rect(right=x - label_gap, centery=y + bar_height // 2)
+        surf.blit(text, text_rect)
+        y += bar_height + padding
+
+    # --- Jump Boost Timer (blue) ---
+    if player.jumpboost_active:
+        remaining = max(0, player.jumpboost_end_time - pygame.time.get_ticks())
+        ratio = remaining / 5000  # must match duration_ms from activate_jumpboost()
+
+        pygame.draw.rect(surf, (60, 60, 60), (x, y, bar_width, bar_height), border_radius=6)
+        pygame.draw.rect(surf, (200, 0, 0), (x, y, int(bar_width * ratio), bar_height), border_radius=6)
+
+        text = font.render("Jump Boost", True, (255, 255, 255))
+        text_rect = text.get_rect(right=x - label_gap, centery=y + bar_height // 2)
+        surf.blit(text, text_rect)
+
 
 # ----------------------------
 # MAIN LOOP
@@ -490,8 +537,8 @@ def main():
     player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
     font = pygame.font.SysFont("arial", 24, bold=True)
-    HOUSE_ZONE_MIN = 269 * TILE_SIZE
-    HOUSE_ZONE_MAX = 272 * TILE_SIZE
+    HOUSE_ZONE_MIN = 269 * TILE_SIZE + 280
+    HOUSE_ZONE_MAX = 272 * TILE_SIZE + 280
     HOUSE_BUBBLE_X = 270 * TILE_SIZE + (TILE_SIZE * 1.0)
     HOUSE_BUBBLE_Y = (-3 + 11.4) * TILE_SIZE - (TILE_SIZE * 1.9)
 
@@ -541,7 +588,7 @@ def main():
                 scroll += dx
             elif player_screen_x < screen_center_x and dx < 0:
                 scroll += dx
-        scroll = max(0, scroll)
+        scroll = max(0, min(scroll, MAX_SCROLL))
 
         # Background layers
         for i in range(16):
@@ -593,8 +640,7 @@ def main():
                     player.activate_sprint()
                     if sfx.get("win"):  # change this to new powerup sound
                         sfx["win"].play()
-                    world_instance.sprint_list.remove((img, rect))
-                    break
+
             player.update_sprint()
 
             # Jump Boost power-up collision
@@ -603,8 +649,7 @@ def main():
                     player.activate_jumpboost()
                     if sfx.get("win"):
                         sfx["win"].play()  # change this to new powerup sound
-                    world_instance.jumpboost_list.remove((img, rect))
-                    break
+
             player.update_jumpboost()
 
 
@@ -683,6 +728,7 @@ def main():
                 screen.blit(btn_text, btn_rect)
                 restart_button_rect = bg_rect
 
+        draw_powerup_timers(screen, player)
         pygame.display.flip()
 
     pygame.mixer.music.fadeout(2000)
