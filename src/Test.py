@@ -754,7 +754,7 @@ def main():
         # Draw Level Complete text
         if showed_complete:
             title_font = pygame.font.SysFont("arial", 60, bold=True)
-            msg = title_font.render("Level #1 Complete!", True, (255, 255, 255))
+            msg = title_font.render("Level #1 DEMO Complete!", True, (255, 255, 255))
             rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN) // 2, (SCREEN_HEIGHT + LOWER_MARGIN) // 2))
             screen.blit(msg, rect)
         else:
