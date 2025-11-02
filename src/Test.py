@@ -51,7 +51,7 @@ def load_sfx(path):
 # ----------------------------
 SCREEN_WIDTH = 1100
 SCREEN_HEIGHT = 740
-LOWER_MARGIN = 100
+LOWER_MARGIN = 0
 SIDE_MARGIN = 300
 FPS = 60
 ROWS = 16
