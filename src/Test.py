@@ -51,7 +51,7 @@ def load_sfx(path):
 # ----------------------------
 SCREEN_WIDTH = 1100
 SCREEN_HEIGHT = 740
-LOWER_MARGIN = 100
+LOWER_MARGIN = 0
 SIDE_MARGIN = 300
 FPS = 60
 ROWS = 16
@@ -194,14 +194,17 @@ class World:
                 rect = pygame.Rect(px, py, img.get_width(), img.get_height())
                 self.tile_list.append((img, rect))
 
+                # --- Platforms player can walk on ---
                 if tile_index == 5 or tile_index == 3 or (tile_index>=129 and tile_index<=133) or (tile_index>=58 and tile_index<=93):
                     self.obstacle_list.append((img, rect))
 
+                # --- Water = Death ---
                 if tile_index == 14:
                     kill_rect = rect.copy()
                     kill_rect.y -= int(TILE_SIZE * 0.025)
                     kill_rect.height += int(TILE_SIZE * 0.3)
                     self.kill_list.append((img, kill_rect))
+                # --- Vine = Climb ---
                 if 120 <= tile_index <= 123:
                     self.vine_list.append((img, rect))
                 # --- Sprint Power-up  ---
@@ -367,6 +370,7 @@ class Player(pygame.sprite.Sprite):
         self.x = float(self.rect.midbottom[0])
         self.y = float(self.rect.midbottom[1])
 
+    # --- Vine climbing ---
     def on_vine(self, vines):
         for _, r in vines:
             if self.rect.colliderect(r):
@@ -386,6 +390,7 @@ class Player(pygame.sprite.Sprite):
             self.speed = self.base_speed
             self.gravity_scale = 1.0 
 
+    # --- Jumboost powerup ---
     def activate_jumpboost(self, duration_ms=5000):
         """Temporarily increase jump height."""
         self.jumpboost_active = True
@@ -400,7 +405,6 @@ class Player(pygame.sprite.Sprite):
     def draw(self, surf, scroll):
         # --- Particle trail for active power-ups ---
         if self.sprint_active or self.jumpboost_active:
-            # spawn 1-3 particles per frame
             for _ in range(random.randint(1, 3)):
                 color = (0, 200, 0) if self.sprint_active else (200, 0, 0)
                 px = self.rect.centerx + random.randint(-10, 10)
@@ -527,12 +531,11 @@ class FadeDown:
 # VISUAL POWER-UP TIMERS
 # ----------------------------
 def draw_powerup_timers(surf, player):
-    """Draw visual countdown bars for Sprint and Jump Boost powerups (top-right, with labels on left)."""
     bar_width = 200
     bar_height = 20
     padding = 15
     margin = 30
-    label_gap = 10  # space between label and bar
+    label_gap = 10  
 
     font = pygame.font.SysFont("arial", 18, bold=True)
 
@@ -701,7 +704,7 @@ def main():
             for (img, rect) in world_instance.sprint_list[:]:  
                 if player.rect.colliderect(rect):
                     player.activate_sprint()
-                    if sfx.get("powerup"):  # change this to new powerup sound
+                    if sfx.get("powerup"): 
                         sfx["powerup"].play()
 
             player.update_sprint()
@@ -711,7 +714,7 @@ def main():
                 if player.rect.colliderect(rect):
                     player.activate_jumpboost()
                     if sfx.get("powerup"):
-                        sfx["powerup"].play()  # change this to new powerup sound
+                        sfx["powerup"].play()  
 
             player.update_jumpboost()
 
