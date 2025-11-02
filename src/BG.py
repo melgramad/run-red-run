@@ -5,6 +5,7 @@ import json
 import csv
 pygame.init()
 
+# --- Loading Background Assets ---
 SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
 LEVEL_FILE = SHARED_FOLDER / "src" / "level.json"
 
@@ -26,6 +27,7 @@ PINE2 = BG_ASSETS / "pine2.png"
 SAVE_BTN = ASSETS / "save_btn.png"
 LOAD_BTN = ASSETS / "load_btn.png"
 
+# --- Screen Settings ---
 SCREEN_WIDTH = 1100
 SCREEN_HEIGHT = 740
 LOWER_MARGIN = 100
@@ -36,6 +38,7 @@ screen = pygame.display.set_mode(
 )
 pygame.display.set_caption("Level Editor")
 
+# --- Colors ---
 WHITE = (255, 255, 255)
 
 ROWS = 16
@@ -69,6 +72,7 @@ for tile_path in tile_files:
 
 TILE_TYPES = len(img_list)
 
+# --- Loading Save and Load buttons ---
 save_btn_img = pygame.image.load(str(SAVE_BTN)).convert_alpha()
 save_btn_img = pygame.transform.scale(save_btn_img, (100, 50))
 load_btn_img = pygame.image.load(str(LOAD_BTN)).convert_alpha()
@@ -88,7 +92,7 @@ def play_game_music():
         print("Audio error:", e)
 
 
-
+# --- Adding clickable tiles to editor ---
 class TileButton:
     def __init__(self, image, x, y, size, index):
         self.image = pygame.transform.scale(image, (size, size))
@@ -101,6 +105,7 @@ class TileButton:
 
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
+
 
 class Button:
     def __init__(self, image, x, y):
@@ -150,6 +155,7 @@ def draw_bg():
             (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20),
         )
 
+# --- Visual aid grid for building platforms ---
 def draw_grid():
     for c in range(MAX_COLS + 1):
         pygame.draw.line(
