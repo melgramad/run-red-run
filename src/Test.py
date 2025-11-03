@@ -133,7 +133,7 @@ PLAYER_SCALE = 2.0
 # ----------------------------
 # LOAD WOLF FRAMES
 # ----------------------------
-WOLF_RUN_FRAMES = load_frames([ASSETS_ROOT / f"wolf_run_{i}.png" for i in range(1,10)], PLAYER_SCALE)
+WOLF_RUN_FRAMES = load_frames([ASSETS_ROOT / f"wolf_stand_{i}.png" for i in range(1,8)], PLAYER_SCALE)
 WOLF_STAND_FRAME = load_image_safe(ASSETS_ROOT / "wolf_stand_1.png")
 if PLAYER_SCALE != 1.0:
     WOLF_STAND_FRAME = pygame.transform.scale(
@@ -593,13 +593,13 @@ def draw_powerup_timers(surf, player):
 # WOLF CLASS
 # ----------------------------
 class Wolf(pygame.sprite.Sprite):
-    def __init__(self, run_frames, stand_frame, target_x, floor_y, scale=1.0, speed=6, world=None):
+    def __init__(self, run_frames, stand_frame, target_x, floor_y, scale=1.0, speed=4, world=None):
         super().__init__()
         self.world = world
         self.run_frames = run_frames
         self.stand_frame = stand_frame
         self.image = self.run_frames[0]
-        self.rect = self.image.get_rect(midbottom=(-200, floor_y))  # start off-screen left
+        self.rect = self.image.get_rect(midbottom=(-600, floor_y))  # start off-screen left
         self.x = float(self.rect.centerx)
         self.y = float(self.rect.bottom)
         self.scale = scale
@@ -761,10 +761,10 @@ def main():
         WOLF_RUN_FRAMES, WOLF_STAND_FRAME,
         target_x=16 * TILE_SIZE,
         floor_y=14 * TILE_SIZE,     # fallback; won’t be used once we snap
-        scale=1.0, speed=6,
+        scale=1.0, speed=4,
         world=world_instance)
     wolf_floor_y = WOLF_GROUND_ROW * TILE_SIZE + WOLF_PIXEL_ADJUST
-    wolf_target_x = 16 * TILE_SIZE  # stops at tile x=16 (change to 17*TILE_SIZE if you prefer)
+    wolf_target_x = 22 * TILE_SIZE  # stops at tile x=16 (change to 17*TILE_SIZE if you prefer)
 
 
     font = pygame.font.SysFont("arial", 24, bold=True)
@@ -847,8 +847,9 @@ def main():
             
 
             # Wolf follows Red's start trigger
-            if moving_right and wolf.running:
+            if wolf.running:
                 wolf.update()
+
     
 
             # Vine climbing (SFX REMOVED; logic intact)
