@@ -755,6 +755,20 @@ def main():
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_a: moving_left = False
                     if event.key == pygame.K_d: moving_right = False
+                # 🩸 Wolf collision kills Red
+                    # 🩸 Wolf collision kills Red (includes front hit zone)
+                wolf_hitbox = wolf.rect.copy()
+                wolf_hitbox.width += 40           # extend his bite reach
+                wolf_hitbox.x -= 20               # center extension a bit ahead
+
+                if player.rect.colliderect(wolf_hitbox):
+                    dead = True
+                    stop_timer = True
+                    moving_left = moving_right = False
+                    pygame.mixer.music.stop()
+                    if sfx.get("lose"):
+                        sfx["lose"].play()
+                    lose_fade.start()
 
         if not fade.active and not dead:
             dx = (-player.speed if moving_left else player.speed if moving_right else 0)
