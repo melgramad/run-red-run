@@ -614,137 +614,67 @@ class Wolf(pygame.sprite.Sprite):
         self.run_frames = run_frames
         self.stand_frame = stand_frame
         self.image = self.run_frames[0]
-        self.rect = self.image.get_rect(midbottom=(-600, floor_y))  # start off-screen left
+
+        # 🐾 Start off-screen (you can adjust -600 if needed)
+        self.rect = self.image.get_rect(midbottom=(-600, floor_y))
         self.x = float(self.rect.centerx)
         self.y = float(self.rect.bottom)
+
+        # 🔧 Attributes
         self.scale = scale
         self.speed = speed
         self.frame_index = 0
         self.frame_time = 1000 // 15
         self.last_update = pygame.time.get_ticks()
         self.running = True
-        self.target_x = target_x
+        self.stop_x = target_x        # exact stop position in pixels
         self.floor_y = floor_y
         self.rect.bottom = self.floor_y
 
+    # ----------------------------
+    # UPDATE (movement + animation)
+    # ----------------------------
     def update(self):
         now = pygame.time.get_ticks()
         if self.running:
+            # 🐾 Animate running
             if now - self.last_update > self.frame_time:
                 self.last_update = now
                 self.frame_index = (self.frame_index + 1) % len(self.run_frames)
                 self.image = self.run_frames[self.frame_index]
 
-            # move right until target, in WORLD space
-            if self.rect.centerx < self.target_x:
+            # 🧭 Move right until target_x, then stop
+            if self.rect.centerx + self.speed < self.stop_x:
                 self.rect.centerx += self.speed
-
-            # snap feet to actual tile top under the wolf
-            ground_y = self._ground_y_at(self.rect.centerx)
-            self.rect.bottom = ground_y
-
-            if self.rect.centerx >= self.target_x:
+            else:
+                # Snap to final position and switch to standing
+                self.rect.centerx = self.stop_x
                 self.running = False
                 mid = self.rect.midbottom
                 self.image = self.stand_frame
                 self.rect = self.image.get_rect(midbottom=mid)
-                self.rect.bottom = ground_y
+
+            # 🦶 Keep feet aligned to top of the tiles
+            self.rect.bottom = self._ground_y_at(self.rect.centerx)
         else:
-            # standing: keep feet locked to ground if camera/level moves
+            # Maintain ground lock even when idle
             self.rect.bottom = self._ground_y_at(self.rect.centerx)
 
+    # ----------------------------
+    # DRAW
+    # ----------------------------
     def draw(self, surf, scroll):
         surf.blit(self.image, (self.rect.x - scroll, self.rect.y))
 
-    def move_and_animate(self, dx, obstacles):
-        # Horizontal
-        self.x += dx
-        self.rect.midbottom = (int(self.x), int(self.y))
-        for _, rect in obstacles:
-            if self.rect.colliderect(rect):
-                if dx > 0:
-                    step_height = rect.top - self.rect.bottom
-                    if 0 < step_height <= TILE_SIZE * 0.3:
-                        self.rect.bottom = rect.top
-                        self.vel_y = 0
-                        self.airborne = False
-                    else:
-                        self.rect.right = rect.left
-                elif dx < 0:
-                    step_height = rect.top - self.rect.bottom
-                    if 0 < step_height <= TILE_SIZE * 0.3:
-                        self.rect.bottom = rect.top
-                        self.vel_y = 0
-                        self.airborne = False
-                    else:
-                        self.rect.left = rect.right
-                self.x = self.rect.midbottom[0]
-
-        # Vertical
-        self.vel_y += GRAVITY * self.gravity_scale
-        self.y += self.vel_y
-        self.rect.midbottom = (int(self.x), int(self.y))
-        for _, rect in obstacles:
-            if self.rect.colliderect(rect):
-                if self.vel_y > 0:
-                    self.rect.bottom = rect.top
-                    self.vel_y = 0
-                    self.airborne = False
-                elif self.vel_y < 0:
-                    self.rect.top = rect.bottom
-                    self.vel_y = 0
-                self.y = self.rect.midbottom[1]
-
-        # Turn
-        if dx < 0 and not self.flip:
-            self.turning = True
-            self.turn_start_time = pygame.time.get_ticks()
-            self.flip = True
-        elif dx > 0 and self.flip:
-            self.turning = True
-            self.turn_start_time = pygame.time.get_ticks()
-            self.flip = False
-
-        # Anim state
-        if self.turning:
-            seq = self.turn_frames
-            if pygame.time.get_ticks() - self.turn_start_time > self.turn_duration:
-                self.turning = False
-        elif self.airborne:
-            seq = self.jump_frames
-        elif dx != 0:
-            seq = self.run_frames
-        else:
-            seq = self.idle_frames
-
-        self.animate(seq)
-
-    def animate(self, seq):
-        if seq == self.run_frames:
-            self.frame_time_ms = 1000 // 24
-        else:
-            self.frame_time_ms = 1000 // 12
-        if seq != getattr(self, "_current_seq", None):
-            self.frame_index = 0
-            self._current_seq = seq
-        if self._current_seq:
-            now = pygame.time.get_ticks()
-            if now - self._last_update > self.frame_time_ms:
-                self._last_update = now
-                self.frame_index = (self.frame_index + 1) % len(self._current_seq)
-            self.image = self._current_seq[self.frame_index]
-        old_midbottom = self.rect.midbottom
-        self.rect = self.image.get_rect()
-        self.rect.midbottom = old_midbottom
-        self.x = float(self.rect.midbottom[0])
-        self.y = float(self.rect.midbottom[1])
-
+    # ----------------------------
+    # GROUND ALIGNMENT HELPER
+    # ----------------------------
     def _ground_y_at(self, x_center):
-        # choose top of any obstacle column the wolf is over
+        # find the top of the obstacle column below this x
         tops = [r.top for _, r in self.world.obstacle_list if r.left <= x_center <= r.right]
         if tops:
-            return min(tops)  # top surface (smallest y)
-        # fallback to provided floor_y if no obstacle under him
+            return min(tops)  # smallest y = top surface
+        # fallback if no obstacle under him
         return self.floor_y
 
 
@@ -781,15 +711,15 @@ def main():
     )
     wolf = Wolf(
         WOLF_RUN_FRAMES, WOLF_STAND_FRAME,
-        target_x=22 * TILE_SIZE,
+        target_x=17 * TILE_SIZE,
         floor_y=14 * TILE_SIZE,
         scale=1.0, speed=4,
         world=world_instance
     )
 
     font = pygame.font.SysFont("arial", 24, bold=True)
-    HOUSE_ZONE_MIN = 269 * TILE_SIZE + 280
-    HOUSE_ZONE_MAX = 272 * TILE_SIZE + 280
+    HOUSE_ZONE_MIN = 266 * TILE_SIZE + 280
+    HOUSE_ZONE_MAX = 269 * TILE_SIZE + 280
     HOUSE_BUBBLE_X = 270 * TILE_SIZE + (TILE_SIZE * 1.0)
     HOUSE_BUBBLE_Y = (-3 + 11.4) * TILE_SIZE - (TILE_SIZE * 1.9)
 
