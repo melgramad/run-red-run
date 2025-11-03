@@ -132,13 +132,24 @@ def main():
             elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
                 if start_rect.collidepoint(e.pos):
                     pygame.mixer.music.stop()
+
+                    # Load Test.py instead of BG.py
+                    if "Test" in sys.modules:
+                        del sys.modules["Test"]
+
                     spec = importlib.util.spec_from_file_location(
-                        "BG", (Path(__file__).parent / "BG.py")
+                        "Test", (Path(__file__).parent / "Test.py")
                     )
-                    BG = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(BG)
-                    BG.main()
+                    Test = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(Test)
+
+                    if hasattr(Test, "main"):
+                        Test.main()
+                    else:
+                        print("⚠️ Test.py has no main() function!")
+
                     play_menu_music()
+
                 elif exit_rect.collidepoint(e.pos):
                     running = False
 
