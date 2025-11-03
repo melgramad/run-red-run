@@ -556,13 +556,14 @@ def draw_powerup_timers(surf, player):
     bar_height = 20
     padding = 15
     margin = 30
+    y_offset = 60
     label_gap = 10  
 
     font = pygame.font.SysFont("arial", 18, bold=True)
 
     # Base position — start near top-right
     x = surf.get_width() - bar_width - margin
-    y = margin
+    y = margin + y_offset
 
     # --- Sprint Timer (green) ---
     if player.sprint_active:
