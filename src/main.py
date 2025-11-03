@@ -24,7 +24,7 @@ clock = pygame.time.Clock()
 # ----------------------------
 # FONT SETUP (Mystical Style)
 # ----------------------------
-FONT_PATH = ASSETS_ROOT / "fonts" / "Enchanted Land.otf"  # <--- place your font here
+FONT_PATH = ASSETS_ROOT / "fonts" / "Enchanted Land.otf"
 
 def _font(sz, bold=False):
     return pygame.font.Font(str(FONT_PATH), sz)
@@ -133,7 +133,34 @@ def main():
                 if start_rect.collidepoint(e.pos):
                     pygame.mixer.music.stop()
 
-                    # Load Test.py instead of BG.py
+                    # --- LOADING FADE-IN/OUT ---
+                    loading_text = TITLE.render("Loading...", True, (255, 255, 255))
+                    text_rect = loading_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+                    fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+                    fade_surface.fill(MENU_BG)
+
+                    # Fade In
+                    for alpha in range(0, 256, 8):
+                        fade_surface.set_alpha(alpha)
+                        screen.fill(MENU_BG)
+                        screen.blit(loading_text, text_rect)
+                        screen.blit(fade_surface, (0, 0))
+                        pygame.display.flip()
+                        pygame.time.delay(20)
+
+                    # Hold
+                    pygame.time.delay(700)
+
+                    # Fade Out
+                    for alpha in range(255, -1, -8):
+                        fade_surface.set_alpha(alpha)
+                        screen.fill(MENU_BG)
+                        screen.blit(loading_text, text_rect)
+                        screen.blit(fade_surface, (0, 0))
+                        pygame.display.flip()
+                        pygame.time.delay(20)
+
+                    # --- Load Test.py ---
                     if "Test" in sys.modules:
                         del sys.modules["Test"]
 
@@ -168,3 +195,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
