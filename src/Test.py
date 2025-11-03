@@ -56,6 +56,8 @@ SIDE_MARGIN = 300
 FPS = 60
 ROWS = 16
 TILE_SIZE = SCREEN_HEIGHT // ROWS
+WOLF_GROUND_ROW   = 14          
+WOLF_PIXEL_ADJUST = 0           
 
 # Maximum scroll (end of level)
 MAX_SCROLL = 11500
@@ -125,6 +127,20 @@ def load_frames(paths, scale=1.0):
             img = pygame.transform.scale(img, (int(img.get_width()*scale), int(img.get_height()*scale)))
         frames.append(img)
     return frames
+PLAYER_SCALE = 2.0
+
+
+# ----------------------------
+# LOAD WOLF FRAMES
+# ----------------------------
+WOLF_RUN_FRAMES = load_frames([ASSETS_ROOT / f"wolf_run_{i}.png" for i in range(1,10)], PLAYER_SCALE)
+WOLF_STAND_FRAME = load_image_safe(ASSETS_ROOT / "wolf_stand_1.png")
+if PLAYER_SCALE != 1.0:
+    WOLF_STAND_FRAME = pygame.transform.scale(
+        WOLF_STAND_FRAME,
+        (int(WOLF_STAND_FRAME.get_width() * PLAYER_SCALE), int(WOLF_STAND_FRAME.get_height() * PLAYER_SCALE))
+    )
+
 
 PLAYER_SCALE = 2.0
 
@@ -263,7 +279,7 @@ class Player(pygame.sprite.Sprite):
         self._last_update = pygame.time.get_ticks()
         self._current_seq = self.idle_frames
 
-        self.particles =[]
+        self.particles = []
 
         # --- Sprint Power-up ---
         self.sprint_active = False
@@ -323,8 +339,7 @@ class Player(pygame.sprite.Sprite):
                 elif self.vel_y < 0:
                     self.rect.top = rect.bottom
                     self.vel_y = 0
-                self.y = self.rect.midbottom[1] 
-
+                self.y = self.rect.midbottom[1]
 
         # Turn
         if dx < 0 and not self.flip:
@@ -336,7 +351,7 @@ class Player(pygame.sprite.Sprite):
             self.turn_start_time = pygame.time.get_ticks()
             self.flip = False
 
-        # Anim state
+        # Animation state
         if self.turning:
             seq = self.turn_frames
             if pygame.time.get_ticks() - self.turn_start_time > self.turn_duration:
@@ -349,6 +364,7 @@ class Player(pygame.sprite.Sprite):
             seq = self.idle_frames
 
         self.animate(seq)
+
 
     def animate(self, seq):
         if seq == self.run_frames:
@@ -370,17 +386,18 @@ class Player(pygame.sprite.Sprite):
         self.x = float(self.rect.midbottom[0])
         self.y = float(self.rect.midbottom[1])
 
-    # --- Vine climbing ---
+
     def on_vine(self, vines):
         for _, r in vines:
             if self.rect.colliderect(r):
                 return True
         return False
 
+
     # --- Sprint Power-up ---
     def activate_sprint(self, duration_ms=4000):
         self.sprint_active = True
-        self.speed = self.base_speed * 1.5  
+        self.speed = self.base_speed * 1.5
         self.gravity_scale = 0.8
         self.sprint_end_time = pygame.time.get_ticks() + duration_ms
 
@@ -388,9 +405,10 @@ class Player(pygame.sprite.Sprite):
         if self.sprint_active and pygame.time.get_ticks() > self.sprint_end_time:
             self.sprint_active = False
             self.speed = self.base_speed
-            self.gravity_scale = 1.0 
+            self.gravity_scale = 1.0
 
-    # --- Jumboost powerup ---
+
+    # --- Jumpboost Power-up ---
     def activate_jumpboost(self, duration_ms=5000):
         """Temporarily increase jump height."""
         self.jumpboost_active = True
@@ -418,8 +436,9 @@ class Player(pygame.sprite.Sprite):
             if particle.alpha <= 0:
                 self.particles.remove(particle)
 
-        # --- Draw the player sprite ---
+        # --- Draw player sprite ---
         surf.blit(pygame.transform.flip(self.image, self.flip, False), (self.rect.x - scroll, self.rect.y))
+
 
 # ----------------------------
 # DIALOG + FADE CLASSES
@@ -570,6 +589,149 @@ def draw_powerup_timers(surf, player):
         text_rect = text.get_rect(right=x - label_gap, centery=y + bar_height // 2)
         surf.blit(text, text_rect)
 
+# ----------------------------
+# WOLF CLASS
+# ----------------------------
+class Wolf(pygame.sprite.Sprite):
+    def __init__(self, run_frames, stand_frame, target_x, floor_y, scale=1.0, speed=6, world=None):
+        super().__init__()
+        self.world = world
+        self.run_frames = run_frames
+        self.stand_frame = stand_frame
+        self.image = self.run_frames[0]
+        self.rect = self.image.get_rect(midbottom=(-200, floor_y))  # start off-screen left
+        self.x = float(self.rect.centerx)
+        self.y = float(self.rect.bottom)
+        self.scale = scale
+        self.speed = speed
+        self.frame_index = 0
+        self.frame_time = 1000 // 15
+        self.last_update = pygame.time.get_ticks()
+        self.running = True
+        self.target_x = target_x
+        self.floor_y = floor_y
+        self.rect.bottom = self.floor_y
+
+    def update(self):
+        now = pygame.time.get_ticks()
+        if self.running:
+            if now - self.last_update > self.frame_time:
+                self.last_update = now
+                self.frame_index = (self.frame_index + 1) % len(self.run_frames)
+                self.image = self.run_frames[self.frame_index]
+
+            # move right until target, in WORLD space
+            if self.rect.centerx < self.target_x:
+                self.rect.centerx += self.speed
+
+            # snap feet to actual tile top under the wolf
+            ground_y = self._ground_y_at(self.rect.centerx)
+            self.rect.bottom = ground_y
+
+            if self.rect.centerx >= self.target_x:
+                self.running = False
+                mid = self.rect.midbottom
+                self.image = self.stand_frame
+                self.rect = self.image.get_rect(midbottom=mid)
+                self.rect.bottom = ground_y
+        else:
+            # standing: keep feet locked to ground if camera/level moves
+            self.rect.bottom = self._ground_y_at(self.rect.centerx)
+
+    def draw(self, surf, scroll):
+        surf.blit(self.image, (self.rect.x - scroll, self.rect.y))
+
+    def move_and_animate(self, dx, obstacles):
+        # Horizontal
+        self.x += dx
+        self.rect.midbottom = (int(self.x), int(self.y))
+        for _, rect in obstacles:
+            if self.rect.colliderect(rect):
+                if dx > 0:
+                    step_height = rect.top - self.rect.bottom
+                    if 0 < step_height <= TILE_SIZE * 0.3:
+                        self.rect.bottom = rect.top
+                        self.vel_y = 0
+                        self.airborne = False
+                    else:
+                        self.rect.right = rect.left
+                elif dx < 0:
+                    step_height = rect.top - self.rect.bottom
+                    if 0 < step_height <= TILE_SIZE * 0.3:
+                        self.rect.bottom = rect.top
+                        self.vel_y = 0
+                        self.airborne = False
+                    else:
+                        self.rect.left = rect.right
+                self.x = self.rect.midbottom[0]
+
+        # Vertical
+        self.vel_y += GRAVITY * self.gravity_scale
+        self.y += self.vel_y
+        self.rect.midbottom = (int(self.x), int(self.y))
+        for _, rect in obstacles:
+            if self.rect.colliderect(rect):
+                if self.vel_y > 0:
+                    self.rect.bottom = rect.top
+                    self.vel_y = 0
+                    self.airborne = False
+                elif self.vel_y < 0:
+                    self.rect.top = rect.bottom
+                    self.vel_y = 0
+                self.y = self.rect.midbottom[1]
+
+        # Turn
+        if dx < 0 and not self.flip:
+            self.turning = True
+            self.turn_start_time = pygame.time.get_ticks()
+            self.flip = True
+        elif dx > 0 and self.flip:
+            self.turning = True
+            self.turn_start_time = pygame.time.get_ticks()
+            self.flip = False
+
+        # Anim state
+        if self.turning:
+            seq = self.turn_frames
+            if pygame.time.get_ticks() - self.turn_start_time > self.turn_duration:
+                self.turning = False
+        elif self.airborne:
+            seq = self.jump_frames
+        elif dx != 0:
+            seq = self.run_frames
+        else:
+            seq = self.idle_frames
+
+        self.animate(seq)
+
+    def animate(self, seq):
+        if seq == self.run_frames:
+            self.frame_time_ms = 1000 // 24
+        else:
+            self.frame_time_ms = 1000 // 12
+        if seq != getattr(self, "_current_seq", None):
+            self.frame_index = 0
+            self._current_seq = seq
+        if self._current_seq:
+            now = pygame.time.get_ticks()
+            if now - self._last_update > self.frame_time_ms:
+                self._last_update = now
+                self.frame_index = (self.frame_index + 1) % len(self._current_seq)
+            self.image = self._current_seq[self.frame_index]
+        old_midbottom = self.rect.midbottom
+        self.rect = self.image.get_rect()
+        self.rect.midbottom = old_midbottom
+        self.x = float(self.rect.midbottom[0])
+        self.y = float(self.rect.midbottom[1])
+
+    def _ground_y_at(self, x_center):
+        # choose top of any obstacle column the wolf is over
+        tops = [r.top for _, r in self.world.obstacle_list if r.left <= x_center <= r.right]
+        if tops:
+            return min(tops)  # top surface (smallest y)
+        # fallback to provided floor_y if no obstacle under him
+        return self.floor_y
+
 
 # ----------------------------
 # MAIN LOOP
@@ -595,6 +757,15 @@ def main():
     world_instance.process_data(level_data)
 
     player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN, 100, BASELINE_Y, PLAYER_FOOT_OFFSET)
+    wolf = Wolf(
+        WOLF_RUN_FRAMES, WOLF_STAND_FRAME,
+        target_x=16 * TILE_SIZE,
+        floor_y=14 * TILE_SIZE,     # fallback; won’t be used once we snap
+        scale=1.0, speed=6,
+        world=world_instance)
+    wolf_floor_y = WOLF_GROUND_ROW * TILE_SIZE + WOLF_PIXEL_ADJUST
+    wolf_target_x = 16 * TILE_SIZE  # stops at tile x=16 (change to 17*TILE_SIZE if you prefer)
+
 
     font = pygame.font.SysFont("arial", 24, bold=True)
     HOUSE_ZONE_MIN = 269 * TILE_SIZE + 280
@@ -673,6 +844,12 @@ def main():
 
         if not dead:
             player.move_and_animate(dx, world_instance.obstacle_list)
+            
+
+            # Wolf follows Red's start trigger
+            if moving_right and wolf.running:
+                wolf.update()
+    
 
             # Vine climbing (SFX REMOVED; logic intact)
             on_vine = player.on_vine(world_instance.vine_list)
@@ -768,6 +945,7 @@ def main():
         else:
         # Only draw player if level is not finished
          player.draw(screen, scroll)
+         wolf.draw(screen, scroll)
 
 
         # Wolf howl after 7s (play once)
