@@ -783,6 +783,26 @@ def main():
             player.move_and_animate(dx, world_instance.obstacle_list)
             wolf.update()
 
+        # --- Power-up collision detection ---
+            # Sprint Power-up
+            for _, rect in world_instance.sprint_list[:]:
+                if player.rect.colliderect(rect):
+                    player.activate_sprint()
+                    if sfx.get("powerup"):
+                        sfx["powerup"].play()
+                    world_instance.sprint_list.remove((_, rect))  # remove so it can't be reused
+                    break
+
+            # Jump Boost Power-up
+            for _, rect in world_instance.jumpboost_list[:]:
+                if player.rect.colliderect(rect):
+                    player.activate_jumpboost()
+                    if sfx.get("powerup"):
+                        sfx["powerup"].play()
+                    world_instance.jumpboost_list.remove((_, rect))
+                    break
+
+
             # --- Vine climbing logic (unchanged) ---
             on_vine = player.on_vine(world_instance.vine_list)
             keys = pygame.key.get_pressed()
@@ -885,6 +905,10 @@ def main():
                 pygame.draw.rect(screen, (200, 200, 200), bg_rect, 2, border_radius=12)
                 screen.blit(btn_text, btn_rect)
                 restart_button_rect = bg_rect
+
+        player.update_sprint()
+        player.update_jumpboost()
+
 
         # Timer + Power-ups
         if not dead and not stop_timer and not fade.active:
