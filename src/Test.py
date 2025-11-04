@@ -738,7 +738,7 @@ def main():
                     if event.key == pygame.K_a: moving_left = False
                     if event.key == pygame.K_d: moving_right = False
 
-        # 🩸 Wolf collision kills Red
+        #  Wolf collision kills Red
         wolf_hitbox = wolf.rect.copy()
         wolf_hitbox.width += 40
         wolf_hitbox.x -= 20
