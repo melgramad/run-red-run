@@ -874,7 +874,7 @@ def main():
                 dialog.update()
                 dialog.draw(screen, scroll)
 
-<<<<<<< HEAD
+
             if level_complete_time is not None:
                 minutes = level_complete_time // 60000
                 seconds = (level_complete_time // 1000) % 60
@@ -884,9 +884,8 @@ def main():
                 screen.blit(time_text, (screen.get_width() // 2 - time_text.get_width() // 2,
                                         screen.get_height() // 2 + 100))
         # ---------------- FADES & UI ----------------
-=======
-        # Fades and overlays
->>>>>>> 3874dd24985597e5cd092cf8d2aeb35f6fb562ab
+
+        # Fades and overla
         fade.update()
         fade.draw(screen)
 
