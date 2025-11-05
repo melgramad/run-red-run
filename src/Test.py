@@ -667,73 +667,6 @@ class Wolf(pygame.sprite.Sprite):
 
 
 # ----------------------------
-# WOLF CLASS
-# ----------------------------
-class Wolf(pygame.sprite.Sprite):
-    def __init__(self, stand_frames, idle_frames, target_x, floor_y, scale=1.0, speed=4, world=None):
-        super().__init__()
-        self.world = world
-        self.stand_frames = stand_frames
-        self.idle_frames = idle_frames
-        self.image = self.stand_frames[0]
-
-        # Start off-screen
-        self.rect = self.image.get_rect(midbottom=(-600, floor_y))
-        self.x = float(self.rect.centerx)
-        self.y = float(self.rect.bottom)
-
-        self.scale = scale
-        self.speed = speed
-        self.frame_index = 0
-        self.frame_time = 1000 // 15
-        self.last_update = pygame.time.get_ticks()
-        self.running = True
-        self.stop_x = target_x
-        self.floor_y = floor_y
-        self.rect.bottom = self.floor_y
-
-    def update(self):
-        now = pygame.time.get_ticks()
-
-        if self.running:
-            # Run animation
-            if now - self.last_update > self.frame_time:
-                self.last_update = now
-                self.frame_index = (self.frame_index + 1) % len(self.stand_frames)
-                self.image = self.stand_frames[self.frame_index]
-
-            # Move until stop_x
-            if self.rect.centerx + self.speed < self.stop_x:
-                self.rect.centerx += self.speed
-            else:
-                # Snap and switch to idle animation
-                self.rect.centerx = self.stop_x
-                self.running = False
-                self.frame_index = 0
-                self.last_update = now
-                self.image = self.idle_frames[0]
-
-        else:
-            # Idle loop
-            if now - self.last_update > self.frame_time:
-                self.last_update = now
-                self.frame_index = (self.frame_index + 1) % len(self.idle_frames)
-                self.image = self.idle_frames[self.frame_index]
-
-        # Keep feet perfectly aligned when switching frames
-        prev_bottom = self.rect.bottom
-        self.rect = self.image.get_rect(midbottom=(self.rect.centerx, prev_bottom))
-        self.rect.bottom = self._ground_y_at(self.rect.centerx)
-
-    def draw(self, surf, scroll):
-        surf.blit(self.image, (self.rect.x - scroll, self.rect.y))
-
-    def _ground_y_at(self, x_center):
-        tops = [r.top for _, r in self.world.obstacle_list if r.left <= x_center <= r.right]
-        return min(tops) if tops else self.floor_y
-
-
-# ----------------------------
 # MAIN LOOP
 # ----------------------------
 def main():
@@ -743,14 +676,14 @@ def main():
 
     scroll = 0
     moving_left = moving_right = False
+<<<<<<< HEAD
 
     level_complete_time = None
 
 
+=======
+>>>>>>> 3874dd24985597e5cd092cf8d2aeb35f6fb562ab
     play_game_music()
-    wolf_timer = pygame.time.get_ticks()
-
-    # --- Timer setup ---
     start_time = pygame.time.get_ticks()
     stop_timer = False
 
@@ -763,10 +696,8 @@ def main():
     world_instance = World()
     world_instance.process_data(level_data)
 
-    player = Player(
-        PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN,
-        100, BASELINE_Y, PLAYER_FOOT_OFFSET
-    )
+    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN,
+                    100, BASELINE_Y, PLAYER_FOOT_OFFSET)
 
     wolf = Wolf(
         WOLF_STAND_FRAMES, WOLF_IDLE_FRAMES,
@@ -788,7 +719,6 @@ def main():
     showed_complete = False
     idle_start_time = 0
 
-    # Game-over state
     dead = False
     lose_fade = FadeDown(SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN, speed=10)
     lose_sound_played = False
@@ -800,7 +730,6 @@ def main():
         screen.fill(GAME_BG)
         dx = 0
 
-        # ---------------- EVENTS ----------------
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -816,22 +745,21 @@ def main():
                     if event.key == pygame.K_a: moving_left = False
                     if event.key == pygame.K_d: moving_right = False
 
-        # ---------------- COLLISIONS ----------------
-        if not dead:
-            wolf_hitbox = wolf.rect.copy()
-            wolf_hitbox.width += 40
-            wolf_hitbox.x -= 20
-            if player.rect.colliderect(wolf_hitbox):
-                dead = True
-                stop_timer = True
-                moving_left = moving_right = False
-                pygame.mixer.music.stop()
-                if sfx.get("lose") and not lose_sound_played:
-                    sfx["lose"].play()
-                    lose_sound_played = True
-                lose_fade.start()
+        #  Wolf collision kills Red
+        wolf_hitbox = wolf.rect.copy()
+        wolf_hitbox.width += 40
+        wolf_hitbox.x -= 20
+        if not dead and player.rect.colliderect(wolf_hitbox):
+            dead = True
+            stop_timer = True
+            moving_left = moving_right = False
+            pygame.mixer.music.stop()
+            if sfx.get("lose") and not lose_sound_played:
+                sfx["lose"].play()
+                lose_sound_played = True
+            lose_fade.start()
 
-        # ---------------- MOVEMENT & SCROLL ----------------
+        # Movement & scroll
         if not fade.active and not dead:
             dx = (-player.speed if moving_left else player.speed if moving_right else 0)
         else:
@@ -846,14 +774,9 @@ def main():
                 scroll += dx
         scroll = max(0, min(scroll, MAX_SCROLL))
 
-        if scroll <= 0 and player.x < SCREEN_WIDTH // 50:
-            player.x = SCREEN_WIDTH // 50
-        elif scroll >= MAX_SCROLL and player.x > MAX_SCROLL + SCREEN_WIDTH + 280:
-            player.x = MAX_SCROLL + SCREEN_WIDTH + 280
-
         player.rect.midbottom = (int(player.x), int(player.y))
 
-        # ---------------- BACKGROUND ----------------
+        # Background layers
         for i in range(16):
             offset_x = i * sky_img.get_width()
             screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
@@ -863,12 +786,31 @@ def main():
 
         world_instance.draw(screen, scroll)
 
-        # ---------------- GAMEPLAY ----------------
         if not dead:
             player.move_and_animate(dx, world_instance.obstacle_list)
             wolf.update()
 
-            # --- Vine climbing ---
+        # --- Power-up collision detection ---
+            # Sprint Power-up
+            for _, rect in world_instance.sprint_list[:]:
+                if player.rect.colliderect(rect):
+                    player.activate_sprint()
+                    if sfx.get("powerup"):
+                        sfx["powerup"].play()
+                    world_instance.sprint_list.remove((_, rect))  # remove so it can't be reused
+                    break
+
+            # Jump Boost Power-up
+            for _, rect in world_instance.jumpboost_list[:]:
+                if player.rect.colliderect(rect):
+                    player.activate_jumpboost()
+                    if sfx.get("powerup"):
+                        sfx["powerup"].play()
+                    world_instance.jumpboost_list.remove((_, rect))
+                    break
+
+
+            # --- Vine climbing logic (unchanged) ---
             on_vine = player.on_vine(world_instance.vine_list)
             keys = pygame.key.get_pressed()
             if on_vine:
@@ -896,20 +838,7 @@ def main():
                 if not moving_vertically:
                     player.airborne = True
 
-            # --- Power-ups ---
-            for (img, rect) in world_instance.sprint_list[:]:
-                if player.rect.colliderect(rect):
-                    player.activate_sprint()
-                    if sfx.get("powerup"): sfx["powerup"].play()
-            player.update_sprint()
-
-            for (img, rect) in world_instance.jumpboost_list[:]:
-                if player.rect.colliderect(rect):
-                    player.activate_jumpboost()
-                    if sfx.get("powerup"): sfx["powerup"].play()
-            player.update_jumpboost()
-
-            # --- Kill zones ---
+            # Death by world hazard
             for _, rect in world_instance.kill_list:
                 if player.rect.colliderect(rect):
                     dead = True
@@ -922,7 +851,7 @@ def main():
                     lose_fade.start()
                     break
 
-            # --- Ending sequence ---
+            # Ending scene logic unchanged
             if (not end_sequence) and (HOUSE_ZONE_MIN <= player.x <= HOUSE_ZONE_MAX):
                 stop_timer = True
                 if sfx.get("win"):
@@ -945,6 +874,7 @@ def main():
                 dialog.update()
                 dialog.draw(screen, scroll)
 
+<<<<<<< HEAD
             if level_complete_time is not None:
                 minutes = level_complete_time // 60000
                 seconds = (level_complete_time // 1000) % 60
@@ -954,6 +884,9 @@ def main():
                 screen.blit(time_text, (screen.get_width() // 2 - time_text.get_width() // 2,
                                         screen.get_height() // 2 + 100))
         # ---------------- FADES & UI ----------------
+=======
+        # Fades and overlays
+>>>>>>> 3874dd24985597e5cd092cf8d2aeb35f6fb562ab
         fade.update()
         fade.draw(screen)
 
@@ -979,19 +912,21 @@ def main():
             player.draw(screen, scroll)
             wolf.draw(screen, scroll)
 
-        # Wolf howl after 7s (once)
+        # 🐺 Wolf howl once
         if sfx.get("wolfhowl") and pygame.time.get_ticks() - wolf_timer > 7000:
             sfx["wolfhowl"].play()
             sfx["wolfhowl"] = None
 
-        # --- Game Over overlay ---
+        # 💀 Game Over fade + restart
         if dead:
             lose_fade.update()
             lose_fade.draw(screen)
+
             go_font = pygame.font.SysFont("arial", 120, bold=True)
             go_text = go_font.render("GAME OVER", True, (255, 0, 0))
             go_rect = go_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2 - 80))
             screen.blit(go_text, go_rect)
+
             if lose_fade.done:
                 btn_font = pygame.font.SysFont("arial", 48, bold=True)
                 btn_text = btn_font.render("Restart Level", True, (255, 255, 255))
@@ -1003,7 +938,11 @@ def main():
                 screen.blit(btn_text, btn_rect)
                 restart_button_rect = bg_rect
 
-        # --- Timers & power-up bars ---
+        player.update_sprint()
+        player.update_jumpboost()
+
+
+        # Timer + Power-ups
         if not dead and not stop_timer and not fade.active:
             draw_timer(screen, start_time)
             draw_powerup_timers(screen, player)
@@ -1013,7 +952,6 @@ def main():
     pygame.mixer.music.fadeout(2000)
     pygame.quit()
     sys.exit()
-
 
 if __name__ == "__main__":
     main()
