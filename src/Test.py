@@ -676,13 +676,8 @@ def main():
 
     scroll = 0
     moving_left = moving_right = False
-<<<<<<< HEAD
 
     level_complete_time = None
-
-
-=======
->>>>>>> 3874dd24985597e5cd092cf8d2aeb35f6fb562ab
     play_game_music()
     start_time = pygame.time.get_ticks()
     stop_timer = False
@@ -884,7 +879,6 @@ def main():
                 screen.blit(time_text, (screen.get_width() // 2 - time_text.get_width() // 2,
                                         screen.get_height() // 2 + 100))
         # ---------------- FADES & UI ----------------
-
         # Fades and overla
         fade.update()
         fade.draw(screen)
