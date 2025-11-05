@@ -515,7 +515,7 @@ class FadeEffect:
         if self.active:
             surf.blit(self.surface, (0, 0))
 
-# NEW: top-to-bottom fade for Game Over
+# top-to-bottom fade for Game Over
 class FadeDown:
     def __init__(self, w, h, speed=8):
         self.surface = pygame.Surface((w, h))
@@ -744,6 +744,9 @@ def main():
     scroll = 0
     moving_left = moving_right = False
 
+    level_complete_time = None
+
+
     play_game_music()
     wolf_timer = pygame.time.get_ticks()
 
@@ -938,7 +941,18 @@ def main():
                 dialog.draw(screen, scroll)
                 if dialog.active and dialog.index >= len(dialog.text) and not fade.active:
                     fade.start()
+            if end_sequence:
+                dialog.update()
+                dialog.draw(screen, scroll)
 
+            if level_complete_time is not None:
+                minutes = level_complete_time // 60000
+                seconds = (level_complete_time // 1000) % 60
+                font = pygame.font.SysFont("arial", 28, bold=True)
+                time_text = font.render(f"Time: {minutes:02}:{seconds:02}", True, (255, 255, 255))
+                # Place it under dialog text
+                screen.blit(time_text, (screen.get_width() // 2 - time_text.get_width() // 2,
+                                        screen.get_height() // 2 + 100))
         # ---------------- FADES & UI ----------------
         fade.update()
         fade.draw(screen)
@@ -951,6 +965,16 @@ def main():
             msg = title_font.render("Level #1 DEMO Complete!", True, (255, 255, 255))
             rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2))
             screen.blit(msg, rect)
+
+            # --- Draw completion time below message ---
+            if level_complete_time is not None:
+                minutes = level_complete_time // 60000
+                seconds = (level_complete_time // 1000) % 60
+                font = pygame.font.SysFont("arial", 36, bold=True)
+                time_text = font.render(f"Time: {minutes:02}:{seconds:02}", True, (255, 255, 255))
+                time_rect = time_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2 + 80))
+                screen.blit(time_text, time_rect)
+
         else:
             player.draw(screen, scroll)
             wolf.draw(screen, scroll)
