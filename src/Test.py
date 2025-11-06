@@ -391,7 +391,7 @@ class Player(pygame.sprite.Sprite):
 
 
     # --- Sprint Power-up ---
-    def activate_sprint(self, duration_ms=4000):
+    def activate_sprint(self, duration_ms=3500):
         self.sprint_active = True
         self.speed = self.base_speed * 1.5
         self.gravity_scale = 0.8
@@ -405,7 +405,7 @@ class Player(pygame.sprite.Sprite):
 
 
     # --- Jumpboost Power-up ---
-    def activate_jumpboost(self, duration_ms=5000):
+    def activate_jumpboost(self, duration_ms=5250):
         """Temporarily increase jump height."""
         self.jumpboost_active = True
         self.jumpboost_end_time = pygame.time.get_ticks() + duration_ms
@@ -829,7 +829,11 @@ def main():
                     player.activate_sprint()
                     if sfx.get("powerup"):
                         sfx["powerup"].play()
+<<<<<<< HEAD
                     world_instance.sprint_list.remove((_, rect))
+=======
+                   # world_instance.sprint_list.remove((_, rect))  # remove so it can't be reused
+>>>>>>> f9518a6f8c7109e783cd537c792fa6b23d3aff86
                     break
 
             for _, rect in world_instance.jumpboost_list[:]:
@@ -837,7 +841,7 @@ def main():
                     player.activate_jumpboost()
                     if sfx.get("powerup"):
                         sfx["powerup"].play()
-                    world_instance.jumpboost_list.remove((_, rect))
+                    #world_instance.jumpboost_list.remove((_, rect))
                     break
 
             # Vine climbing
