@@ -829,11 +829,6 @@ def main():
                     player.activate_sprint()
                     if sfx.get("powerup"):
                         sfx["powerup"].play()
-<<<<<<< HEAD
-                    world_instance.sprint_list.remove((_, rect))
-=======
-                   # world_instance.sprint_list.remove((_, rect))  # remove so it can't be reused
->>>>>>> f9518a6f8c7109e783cd537c792fa6b23d3aff86
                     break
 
             for _, rect in world_instance.jumpboost_list[:]:
