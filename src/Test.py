@@ -664,8 +664,6 @@ class Wolf(pygame.sprite.Sprite):
     def _ground_y_at(self, x_center):
         tops = [r.top for _, r in self.world.obstacle_list if r.left <= x_center <= r.right]
         return min(tops) if tops else self.floor_y
-
-
 # ----------------------------
 # MAIN LOOP
 # ----------------------------
@@ -691,8 +689,10 @@ def main():
     world_instance = World()
     world_instance.process_data(level_data)
 
-    player = Player(PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN,
-                    100, BASELINE_Y, PLAYER_FOOT_OFFSET)
+    player = Player(
+        PLAYER_IDLE_FRAMES, PLAYER_RUN, PLAYER_CLIMB, PLAYER_JUMP, PLAYER_TURN,
+        100, BASELINE_Y, PLAYER_FOOT_OFFSET
+    )
 
     wolf = Wolf(
         WOLF_STAND_FRAMES, WOLF_IDLE_FRAMES,
@@ -708,6 +708,10 @@ def main():
     HOUSE_BUBBLE_X = 270 * TILE_SIZE + (TILE_SIZE * 1.0)
     HOUSE_BUBBLE_Y = (-3 + 11.4) * TILE_SIZE - (TILE_SIZE * 1.9)
 
+    # Wolf line
+    wolf_label = font.render("Wolf:", True, (200, 0, 0))
+    wolf_rest = font.render(" Better start running, Red.", True, (0, 0, 0))
+
     dialog = DialogBubble("Granny: Welcome dear, come in!", font, (0, 0, 0), HOUSE_BUBBLE_X, HOUSE_BUBBLE_Y)
     fade = FadeEffect(SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN, speed=5)
     end_sequence = False
@@ -718,6 +722,12 @@ def main():
     lose_fade = FadeDown(SCREEN_WIDTH + SIDE_MARGIN, SCREEN_HEIGHT + LOWER_MARGIN, speed=10)
     lose_sound_played = False
     restart_button_rect = None
+
+    # world position of the Wolf's speech bubble
+    WOLF_BUBBLE_WORLD_X = 2 * TILE_SIZE  # centered around x=2 tiles (middle of the 0–4 area)
+    WOLF_BUBBLE_WORLD_Y = 5 * TILE_SIZE  # slightly above ground (y=14)
+    WOLF_BUBBLE_WIDTH = 320
+    WOLF_BUBBLE_HEIGHT = 60
 
     running = True
     while running:
@@ -740,7 +750,7 @@ def main():
                     if event.key == pygame.K_a: moving_left = False
                     if event.key == pygame.K_d: moving_right = False
 
-        #  Wolf collision kills Red
+        # Wolf collision kills Red
         wolf_hitbox = wolf.rect.copy()
         wolf_hitbox.width += 40
         wolf_hitbox.x -= 20
@@ -768,10 +778,9 @@ def main():
             elif player_screen_x < screen_center_x and dx < 0:
                 scroll += dx
         scroll = max(0, min(scroll, MAX_SCROLL))
-
         player.rect.midbottom = (int(player.x), int(player.y))
 
-        # Background layers
+        # Background
         for i in range(16):
             offset_x = i * sky_img.get_width()
             screen.blit(sky_img, (offset_x - scroll * 0.4, 0))
@@ -781,21 +790,48 @@ def main():
 
         world_instance.draw(screen, scroll)
 
+        # --- Wolf speech bubble (anchored to world x=0–4, y≈14) ---
+
+        bubble_screen_x = WOLF_BUBBLE_WORLD_X - scroll
+        bubble_screen_y = WOLF_BUBBLE_WORLD_Y + 40  # lower bubble slightly
+        wolf_bubble_rect = pygame.Rect(bubble_screen_x, bubble_screen_y, WOLF_BUBBLE_WIDTH, WOLF_BUBBLE_HEIGHT)
+
+        pygame.draw.rect(screen, (255, 255, 255), wolf_bubble_rect, border_radius=12)
+        pygame.draw.rect(screen, (0, 0, 0), wolf_bubble_rect, 2, border_radius=12)
+
+            # Arrow on left (Wolf speaking)
+        pygame.draw.polygon(
+                screen, (255, 255, 255),
+                [(wolf_bubble_rect.left - 20, wolf_bubble_rect.centery - 10),
+                 (wolf_bubble_rect.left, wolf_bubble_rect.centery - 20),
+                 (wolf_bubble_rect.left, wolf_bubble_rect.centery + 20)]
+            )
+        pygame.draw.polygon(
+                screen, (0, 0, 0),
+                [(wolf_bubble_rect.left - 20, wolf_bubble_rect.centery - 10),
+                 (wolf_bubble_rect.left, wolf_bubble_rect.centery - 20),
+                 (wolf_bubble_rect.left, wolf_bubble_rect.centery + 20)], 2
+            )
+
+            # Text
+        screen.blit(wolf_label, (wolf_bubble_rect.x + 10, wolf_bubble_rect.y + 15))
+        screen.blit(wolf_rest, (wolf_bubble_rect.x + 10 + wolf_label.get_width(), wolf_bubble_rect.y + 15))
+
+        # ----------------------------
+
         if not dead:
             player.move_and_animate(dx, world_instance.obstacle_list)
             wolf.update()
 
-        # --- Power-up collision detection ---
-            # Sprint Power-up
+            # Power-ups
             for _, rect in world_instance.sprint_list[:]:
                 if player.rect.colliderect(rect):
                     player.activate_sprint()
                     if sfx.get("powerup"):
                         sfx["powerup"].play()
-                    world_instance.sprint_list.remove((_, rect))  # remove so it can't be reused
+                    world_instance.sprint_list.remove((_, rect))
                     break
 
-            # Jump Boost Power-up
             for _, rect in world_instance.jumpboost_list[:]:
                 if player.rect.colliderect(rect):
                     player.activate_jumpboost()
@@ -804,8 +840,7 @@ def main():
                     world_instance.jumpboost_list.remove((_, rect))
                     break
 
-
-            # --- Vine climbing logic (unchanged) ---
+            # Vine climbing
             on_vine = player.on_vine(world_instance.vine_list)
             keys = pygame.key.get_pressed()
             if on_vine:
@@ -833,7 +868,7 @@ def main():
                 if not moving_vertically:
                     player.airborne = True
 
-            # Death by world hazard
+            # Death zones
             for _, rect in world_instance.kill_list:
                 if player.rect.colliderect(rect):
                     dead = True
@@ -846,7 +881,7 @@ def main():
                     lose_fade.start()
                     break
 
-            # Ending scene logic unchanged
+            # Ending logic
             if (not end_sequence) and (HOUSE_ZONE_MIN <= player.x <= HOUSE_ZONE_MAX):
                 stop_timer = True
                 if sfx.get("win"):
@@ -859,27 +894,12 @@ def main():
             if end_sequence and not dialog.active:
                 if pygame.time.get_ticks() - idle_start_time > 1000:
                     dialog.start()
-
             if end_sequence:
                 dialog.update()
                 dialog.draw(screen, scroll)
                 if dialog.active and dialog.index >= len(dialog.text) and not fade.active:
                     fade.start()
-            if end_sequence:
-                dialog.update()
-                dialog.draw(screen, scroll)
 
-
-            if level_complete_time is not None:
-                minutes = level_complete_time // 60000
-                seconds = (level_complete_time // 1000) % 60
-                font = pygame.font.SysFont("arial", 28, bold=True)
-                time_text = font.render(f"Time: {minutes:02}:{seconds:02}", True, (255, 255, 255))
-                # Place it under dialog text
-                screen.blit(time_text, (screen.get_width() // 2 - time_text.get_width() // 2,
-                                        screen.get_height() // 2 + 100))
-        # ---------------- FADES & UI ----------------
-        # Fades and overla
         fade.update()
         fade.draw(screen)
 
@@ -889,41 +909,32 @@ def main():
         if showed_complete:
             title_font = pygame.font.SysFont("arial", 60, bold=True)
             msg = title_font.render("Level #1 DEMO Complete!", True, (255, 255, 255))
-            rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2))
+            rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2,
+                                        (SCREEN_HEIGHT + LOWER_MARGIN)//2))
             screen.blit(msg, rect)
-
-            # --- Draw completion time below message ---
-            if level_complete_time is not None:
-                minutes = level_complete_time // 60000
-                seconds = (level_complete_time // 1000) % 60
-                font = pygame.font.SysFont("arial", 36, bold=True)
-                time_text = font.render(f"Time: {minutes:02}:{seconds:02}", True, (255, 255, 255))
-                time_rect = time_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2 + 80))
-                screen.blit(time_text, time_rect)
-
         else:
             player.draw(screen, scroll)
             wolf.draw(screen, scroll)
 
-        # 🐺 Wolf howl once
+        # Wolf howl once
         if sfx.get("wolfhowl") and pygame.time.get_ticks() - wolf_timer > 7000:
             sfx["wolfhowl"].play()
             sfx["wolfhowl"] = None
 
-        # 💀 Game Over fade + restart
+        # Game Over
         if dead:
             lose_fade.update()
             lose_fade.draw(screen)
-
             go_font = pygame.font.SysFont("arial", 120, bold=True)
             go_text = go_font.render("GAME OVER", True, (255, 0, 0))
-            go_rect = go_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2 - 80))
+            go_rect = go_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2,
+                                               (SCREEN_HEIGHT + LOWER_MARGIN)//2 - 80))
             screen.blit(go_text, go_rect)
-
             if lose_fade.done:
                 btn_font = pygame.font.SysFont("arial", 48, bold=True)
                 btn_text = btn_font.render("Restart Level", True, (255, 255, 255))
-                btn_rect = btn_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2, (SCREEN_HEIGHT + LOWER_MARGIN)//2 + 80))
+                btn_rect = btn_text.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2,
+                                                     (SCREEN_HEIGHT + LOWER_MARGIN)//2 + 80))
                 pad = 20
                 bg_rect = btn_rect.inflate(pad * 2, pad * 2)
                 pygame.draw.rect(screen, (50, 50, 50), bg_rect, border_radius=12)
@@ -934,8 +945,6 @@ def main():
         player.update_sprint()
         player.update_jumpboost()
 
-
-        # Timer + Power-ups
         if not dead and not stop_timer and not fade.active:
             draw_timer(screen, start_time)
             draw_powerup_timers(screen, player)
@@ -945,6 +954,7 @@ def main():
     pygame.mixer.music.fadeout(2000)
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()
