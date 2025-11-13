@@ -883,6 +883,7 @@ def main():
             # Ending logic
             if (not end_sequence) and (HOUSE_ZONE_MIN <= player.x <= HOUSE_ZONE_MAX):
                 stop_timer = True
+                finish_time_ms = pygame.time.get_ticks() - start_time
                 if sfx.get("win"):
                     pygame.mixer.music.stop()
                     sfx["win"].play()
@@ -908,9 +909,27 @@ def main():
         if showed_complete:
             title_font = pygame.font.SysFont("arial", 60, bold=True)
             msg = title_font.render("Level #1 DEMO Complete!", True, (255, 255, 255))
+            #timer text right inder here that says "Score: the time it took to reach the house/end should be displayed on teh ending screen just like the msg above"
             rect = msg.get_rect(center=((SCREEN_WIDTH + SIDE_MARGIN)//2,
                                         (SCREEN_HEIGHT + LOWER_MARGIN)//2))
             screen.blit(msg, rect)
+                # --- FINAL SCORE UNDER MESSAGE ---
+            score_font = pygame.font.SysFont("arial", 40, bold=True)
+
+            # Convert ms → mm:ss
+            total_seconds = finish_time_ms // 1000
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            final_timer_text = f"Your Score: {minutes:02}:{seconds:02}"
+
+            score_surf = score_font.render(final_timer_text, True, (255, 255, 255))
+            score_rect = score_surf.get_rect(center=(
+                (SCREEN_WIDTH + SIDE_MARGIN)//2,
+                (SCREEN_HEIGHT + LOWER_MARGIN)//2 + 80
+            ))
+
+            screen.blit(score_surf, score_rect)
+
         else:
             player.draw(screen, scroll)
             wolf.draw(screen, scroll)
