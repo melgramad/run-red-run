@@ -1,3 +1,5 @@
+# This file is the brunt of our code which loads the level, has all the players and platform collision, the music, sfx, animations, ect.
+
 import sys
 import pygame
 import os

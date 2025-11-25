@@ -1,3 +1,5 @@
+# This is the main the loads the menu and final game 
+
 import sys, pygame, importlib
 from pathlib import Path
 
