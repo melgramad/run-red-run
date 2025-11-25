@@ -6,6 +6,7 @@ import json
 import csv
 pygame.init()
 
+# File loading
 SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
 LEVEL_FILE = SHARED_FOLDER / "src" / "level.json"
 
@@ -27,6 +28,8 @@ PINE2 = BG_ASSETS / "pine2.png"
 SAVE_BTN = ASSETS / "save_btn.png"
 LOAD_BTN = ASSETS / "load_btn.png"
 
+
+# Screen dynamics
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 740
 LOWER_MARGIN = 100
@@ -77,6 +80,7 @@ load_btn_img = pygame.transform.scale(load_btn_img, (100, 50))
 
 GAME_MUSIC = Path(r"C:\Dev\KingdomDance.m4a")
 
+# Music
 def play_game_music():
     try:
         if GAME_MUSIC.exists():
@@ -89,7 +93,7 @@ def play_game_music():
         print("Audio error:", e)
 
 
-
+# Buttons and Tiles for editor 
 class TileButton:
     def __init__(self, image, x, y, size, index):
         self.image = pygame.transform.scale(image, (size, size))
@@ -151,6 +155,7 @@ def draw_bg():
             (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20),
         )
 
+# Grid for accurate tile placement
 def draw_grid():
     for c in range(MAX_COLS + 1):
         pygame.draw.line(
@@ -184,6 +189,8 @@ while run:
     save_button.draw(screen)
     load_button.draw(screen)
 
+
+    # Clicking button logic
     if selected_tile_index is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         tile_img = img_list[selected_tile_index]
@@ -216,6 +223,7 @@ while run:
                 scroll_left = True
             if event.key == pygame.K_RIGHT:
                 scroll_right = True
+            #Make blocks bigger or smaller if needed
             if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                 tile_scale = min(max_scale, tile_scale + scale_step)
             if event.key == pygame.K_MINUS:
@@ -287,9 +295,6 @@ while run:
                        # print(f"Loaded {len(placed_tiles)} tiles successfully")
                     else:
                         print("No level.json file found!")
-
-
-
 
 
             if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
