@@ -1,7 +1,11 @@
-# This is the main the loads the menu and final game 
+# This is the main that loads the menu and final game 
 
-import sys, pygame, importlib
+import sys
+import pygame
 from pathlib import Path
+import importlib
+import Test
+
 
 # ----------------------------
 # SETTINGS
@@ -112,81 +116,77 @@ def play_menu_music():
         print("Audio error:", e)
 
 # ----------------------------
+# LOAD LEVEL FUNCTION
+# ----------------------------
+def load_level(level_name):
+    level_file_map = {
+        "Demo": "Demo.json",
+        "Tutorial": "Tutorial.json",
+        "Level1": "Level1.json",
+    }
+
+    selected_file = level_file_map[level_name]
+    print("Loading level:", selected_file)
+    Test.main(selected_file)
+
+# ----------------------------
 # MAIN MENU
 # ----------------------------
 def main():
     title = TITLE.render("Run Red, Run!", True, (230, 230, 230))
-    start_rect = pygame.Rect(0, 0, 240, 56)
-    start_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3)
+    
+    # Buttons on main menu
+    level_rect = pygame.Rect(0, 0, 240, 56)
+    level_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3)
+    
     exit_rect = pygame.Rect(0, 0, 240, 56)
     exit_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + 80)
-
+    
+    # Player sprite in menu
     idle = load_frames("red_idle_", 1, 8, scale=2.8)
     menu_red = PlayerMenu(idle, x=SCREEN_WIDTH // 2, baseline_y=SCREEN_HEIGHT // 2 + 220)
-
+    
     play_menu_music()
-
+    
+    in_level_select = False
     running = True
     while running:
+        mp = pygame.mouse.get_pos()
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 running = False
             elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                if start_rect.collidepoint(e.pos):
-                    pygame.mixer.music.stop()
-
-                    # --- LOADING FADE-IN/OUT ---
-                    loading_text = TITLE.render("Loading...", True, (255, 255, 255))
-                    text_rect = loading_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-                    fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-                    fade_surface.fill(MENU_BG)
-
-                    # Fade In
-                    for alpha in range(0, 256, 8):
-                        fade_surface.set_alpha(alpha)
-                        screen.fill(MENU_BG)
-                        screen.blit(loading_text, text_rect)
-                        screen.blit(fade_surface, (0, 0))
-                        pygame.display.flip()
-                        pygame.time.delay(20)
-
-                    # Hold
-                    pygame.time.delay(700)
-
-                    # Fade Out
-                    for alpha in range(255, -1, -8):
-                        fade_surface.set_alpha(alpha)
-                        screen.fill(MENU_BG)
-                        screen.blit(loading_text, text_rect)
-                        screen.blit(fade_surface, (0, 0))
-                        pygame.display.flip()
-                        pygame.time.delay(20)
-
-                    # --- Load Test.py ---
-                    if "Test" in sys.modules:
-                        del sys.modules["Test"]
-
-                    spec = importlib.util.spec_from_file_location(
-                        "Test", (Path(__file__).parent / "Test.py")
-                    )
-                    Test = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(Test)
-
-                    if hasattr(Test, "main"):
-                        Test.main()
-                    else:
-                        print("⚠️ Test.py has no main() function!")
-
-                    play_menu_music()
-
-                elif exit_rect.collidepoint(e.pos):
-                    running = False
-
+                if not in_level_select:
+                    # Main menu clicks
+                    if level_rect.collidepoint(e.pos):
+                        in_level_select = True
+                    elif exit_rect.collidepoint(e.pos):
+                        running = False
+                else:
+                    # Level select clicks
+                    levels = ["Demo", "Tutorial", "Level1"]
+                    for i, lvl in enumerate(levels):
+                        lvl_rect = pygame.Rect(0, 0, 240, 56)
+                        lvl_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + i * 80)
+                        if lvl_rect.collidepoint(e.pos):
+                            pygame.mixer.music.stop()
+                            load_level(lvl)
+                            play_menu_music()
+                            in_level_select = False
+        
         screen.fill(MENU_BG)
         screen.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 6)))
-        mp = pygame.mouse.get_pos()
-        draw_button(screen, start_rect, "Start", mp)
-        draw_button(screen, exit_rect, "Exit", mp)
+        
+        if not in_level_select:
+            draw_button(screen, level_rect, "Level Select", mp)
+            draw_button(screen, exit_rect, "Exit", mp)
+        else:
+            levels = ["Demo", "Tutorial", "Level1"]
+            for i, lvl in enumerate(levels):
+                lvl_rect = pygame.Rect(0, 0, 240, 56)
+                lvl_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + i * 80)
+                draw_button(screen, lvl_rect, lvl, mp)
+        
         menu_red.update()
         menu_red.draw(screen)
         pygame.display.flip()
@@ -197,4 +197,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
