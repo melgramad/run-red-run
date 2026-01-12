@@ -1,20 +1,18 @@
 # This file is for the background and level editor
-
-
-import sys 
+import sys
 from pathlib import Path
 import pygame
 import json
 import csv
+
 pygame.init()
 
-# File loading
+# -------------------- Step 2: File loading --------------------
 SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
-selected_level = level_select_menu()
-LEVEL_FILE = SHARED_FOLDER / "src" / selected_level
+LEVELS_FOLDER = SHARED_FOLDER / "src" / "levels"  # separate folder for multiple levels
+LEVELS_FOLDER.mkdir(exist_ok=True)  # make sure it exists
 
-
-
+# -------------------- Step 3: Screen dynamics --------------------
 clock = pygame.time.Clock()
 FPS = 60
 
@@ -32,53 +30,6 @@ PINE2 = BG_ASSETS / "pine2.png"
 SAVE_BTN = ASSETS / "save_btn.png"
 LOAD_BTN = ASSETS / "load_btn.png"
 
-#Menu to select which level to edit
-def level_select_menu():
-    menu_font = pygame.font.SysFont("arial", 48, bold=True)
-    btn_font = pygame.font.SysFont("arial", 32, bold=True)
-
-    #When you want to add a new level add it here
-    buttons = [
-        ("Level 1", "level.json"),
-        ("Level 2", "level2.json"),
-    ]
-
-    btn_rects = []
-    for i, (label, _) in enumerate(buttons):
-        rect = pygame.Rect(0, 0, 300, 60)
-        rect.center = (SCREEN_WIDTH // 2, 250 + i * 90)
-        btn_rects.append(rect)
-
-    while True:
-        screen.fill((30, 30, 30))
-        title = menu_font.render("LEVEL EDITOR", True, (255, 255, 255))
-        screen.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, 120)))
-
-        mouse_pos = pygame.mouse.get_pos()
-
-        for i, rect in enumerate(btn_rects):
-            color = (90, 90, 90) if rect.collidepoint(mouse_pos) else (60, 60, 60)
-            pygame.draw.rect(screen, color, rect, border_radius=12)
-            pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=12)
-
-            text = btn_font.render(buttons[i][0], True, (255, 255, 255))
-            screen.blit(text, text.get_rect(center=rect.center))
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                for i, rect in enumerate(btn_rects):
-                    if rect.collidepoint(event.pos):
-                        return buttons[i][1]
-
-        pygame.display.flip()
-        clock.tick(60)
-
-
-# Screen dynamics
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 740
 LOWER_MARGIN = 100
@@ -105,6 +56,7 @@ scale_step = 0.1
 max_scale = 15.0
 min_scale = 0.5
 
+# -------------------- Load images --------------------
 sky_img = pygame.image.load(str(SKY)).convert_alpha()
 mountain_img = pygame.image.load(str(MOUNTAIN)).convert_alpha()
 pine1_img = pygame.image.load(str(PINE1)).convert_alpha()
@@ -129,20 +81,19 @@ load_btn_img = pygame.transform.scale(load_btn_img, (100, 50))
 
 GAME_MUSIC = Path(r"C:\Dev\KingdomDance.m4a")
 
-# Music
+# -------------------- Music --------------------
 def play_game_music():
     try:
         if GAME_MUSIC.exists():
             pygame.mixer.music.load(str(GAME_MUSIC))
             pygame.mixer.music.set_volume(0.8)
-            pygame.mixer.music.play(-1, start=0.0)  # loops until exit
+            pygame.mixer.music.play(-1, start=0.0)
         else:
             print("Game music not found:", GAME_MUSIC)
     except Exception as e:
         print("Audio error:", e)
 
-
-# Buttons and Tiles for editor 
+# -------------------- Buttons and Tiles --------------------
 class TileButton:
     def __init__(self, image, x, y, size, index):
         self.image = pygame.transform.scale(image, (size, size))
@@ -168,25 +119,49 @@ class Button:
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
-tile_buttons = []
-button_size = 30
-padding = 10
-cols = 7
+# -------------------- Level select menu --------------------
+def level_select_menu():
+    menu_font = pygame.font.SysFont("arial", 48, bold=True)
+    btn_font = pygame.font.SysFont("arial", 32, bold=True)
 
-for i, img in enumerate(img_list):
-    col = i % cols
-    row = i // cols
-    x = SCREEN_WIDTH + padding + col * (button_size + padding)
-    y = padding + row * (button_size + padding)
-    tile_buttons.append(TileButton(img, x, y, button_size, i))
+    buttons = [
+        ("Demo", "Demo.json"),
+        ("Tutorial", "Tutorial"),
+        ("Level 1", "level1.json"),
+    ]
 
-selected_tile_index = None
-placed_tiles = []
+    btn_rects = []
+    for i, (label, _) in enumerate(buttons):
+        rect = pygame.Rect(0, 0, 300, 60)
+        rect.center = (screen.get_width() // 2, 250 + i * 90)
+        btn_rects.append(rect)
 
-load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT - -30)
-save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT - -30)
+    while True:
+        screen.fill((30, 30, 30))
+        title = menu_font.render("LEVEL EDITOR", True, (255, 255, 255))
+        screen.blit(title, title.get_rect(center=(screen.get_width() // 2, 120)))
 
+        mouse_pos = pygame.mouse.get_pos()
+        for i, rect in enumerate(btn_rects):
+            color = (90, 90, 90) if rect.collidepoint(mouse_pos) else (60, 60, 60)
+            pygame.draw.rect(screen, color, rect, border_radius=12)
+            pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=12)
+            text = btn_font.render(buttons[i][0], True, WHITE)
+            screen.blit(text, text.get_rect(center=rect.center))
 
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for i, rect in enumerate(btn_rects):
+                    if rect.collidepoint(event.pos):
+                        return LEVELS_FOLDER / buttons[i][1]
+
+        pygame.display.flip()
+        clock.tick(60)
+
+# -------------------- Draw functions --------------------
 def draw_bg():
     for i in range(17):
         offset_x = (i * sky_img.get_width()) - scroll
@@ -204,7 +179,6 @@ def draw_bg():
             (offset_x - scroll * 0.8, SCREEN_HEIGHT - pine2_img.get_height() + 20),
         )
 
-# Grid for accurate tile placement
 def draw_grid():
     for c in range(MAX_COLS + 1):
         pygame.draw.line(
@@ -217,6 +191,52 @@ def draw_grid():
         pygame.draw.line(
             screen, WHITE, (0, r * TILE_SIZE), (SCREEN_WIDTH, r * TILE_SIZE)
         )
+
+# -------------------- Initialize buttons --------------------
+tile_buttons = []
+button_size = 30
+padding = 10
+cols = 7
+
+for i, img in enumerate(img_list):
+    col = i % cols
+    row = i // cols
+    x = SCREEN_WIDTH + padding + col * (button_size + padding)
+    y = padding + row * (button_size + padding)
+    tile_buttons.append(TileButton(img, x, y, button_size, i))
+
+selected_tile_index = None
+placed_tiles = []
+
+load_button = Button(load_btn_img, SCREEN_WIDTH - 1000, SCREEN_HEIGHT + 50)
+save_button = Button(save_btn_img, SCREEN_WIDTH - 200, SCREEN_HEIGHT + 50)
+back_button_rect = pygame.Rect(SCREEN_WIDTH - 500, SCREEN_HEIGHT + 50, 100, 50)
+
+# -------------------- Load level helper --------------------
+def load_level(level_file):
+    global placed_tiles
+    placed_tiles.clear()
+    if level_file.is_file():
+        with open(level_file, "r") as f:
+            loaded_tiles = json.load(f)
+        for item in loaded_tiles:
+            if isinstance(item, dict):
+                tile_index = item.get("tile_index", 0)
+                x = item.get("x", 0)
+                y = item.get("y", 0)
+                scale = item.get("scale", 1.0)
+                placed_tiles.append((tile_index, x, y, scale))
+            elif isinstance(item, list):
+                if len(item) == 4:
+                    tile_index, x, y, scale = item
+                    placed_tiles.append((tile_index, x, y, scale))
+                elif len(item) == 3:
+                    x, y, tile_index = item
+                    placed_tiles.append((tile_index, x, y, 1.0))
+
+# -------------------- Main program --------------------
+LEVEL_FILE = level_select_menu()  # ask user which level to edit
+load_level(LEVEL_FILE)           # load the selected level
 
 run = True
 while run:
@@ -238,8 +258,14 @@ while run:
     save_button.draw(screen)
     load_button.draw(screen)
 
+    # Draw Back button
+    pygame.draw.rect(screen, (60, 60, 60), back_button_rect, border_radius=8)
+    pygame.draw.rect(screen, (200, 200, 200), back_button_rect, 2, border_radius=8)
+    font = pygame.font.SysFont("arial", 24, bold=True)
+    text = font.render("Back", True, WHITE)
+    screen.blit(text, text.get_rect(center=back_button_rect.center))
 
-    # Clicking button logic
+    # Hovering tile
     if selected_tile_index is not None:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         tile_img = img_list[selected_tile_index]
@@ -255,14 +281,15 @@ while run:
                 scaled_img, (mouse_x - scaled_size // 2, mouse_y - scaled_size // 2)
             )
 
+    # Scrolling
     if scroll_left:
         scroll -= scroll_speed
     if scroll_right:
         scroll += scroll_speed
     MAX_SCROLL = 11500
     scroll = max(0, min(scroll, MAX_SCROLL))
-    #scroll = max(0, min(scroll, (sky_img.get_width() * 45) - SCREEN_WIDTH))
 
+    # Event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
@@ -272,7 +299,6 @@ while run:
                 scroll_left = True
             if event.key == pygame.K_RIGHT:
                 scroll_right = True
-            #Make blocks bigger or smaller if needed
             if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                 tile_scale = min(max_scale, tile_scale + scale_step)
             if event.key == pygame.K_MINUS:
@@ -287,68 +313,47 @@ while run:
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
 
+            # ----------------- Left click -----------------
             if event.button == 1:
+                button_clicked = False
+
+                # Tile buttons (for selecting tiles)
                 for button in tile_buttons:
                     if button.is_clicked(mouse_pos):
                         selected_tile_index = button.index
+                        button_clicked = True
 
-                if selected_tile_index is not None and mouse_pos[0] < SCREEN_WIDTH:
-                    grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
-                    grid_y = mouse_pos[1] // TILE_SIZE
-                    placed_tiles.append(
-                        (selected_tile_index, grid_x, grid_y, tile_scale)
-                    )
-
-                # --- Save ---
+                # Save button
                 if save_button.is_clicked(mouse_pos):
-                    # Save as a list of dicts for clarity
                     save_data = [
-                        {
-                            "tile_index": tile_index,
-                            "x": x,
-                            "y": y,
-                            "scale": scale
-                        }
-                        for tile_index, x, y, scale in placed_tiles
+                        {"tile_index": t_index, "x": x, "y": y, "scale": scale}
+                        for t_index, x, y, scale in placed_tiles
                     ]
                     with open(LEVEL_FILE, "w") as f:
-                        json.dump(save_data, f, indent=4)  # indent makes it easier to edit manually
-                    #print(f"Saved {len(placed_tiles)} tiles to {LEVEL_FILE}")
+                        json.dump(save_data, f, indent=4)
+                    button_clicked = True
 
-                # --- Load ---
+                # Load button
                 elif load_button.is_clicked(mouse_pos):
-                    #print(f"Attempting to load {LEVEL_FILE}")
-                    if LEVEL_FILE.is_file():
-                        with open(LEVEL_FILE, "r") as f:
-                            loaded_tiles = json.load(f)
-                        #print(f"Raw loaded data: {loaded_tiles}")
+                    load_level(LEVEL_FILE)
+                    button_clicked = True
 
-                        placed_tiles.clear()
+                # Back button
+                elif back_button_rect.collidepoint(mouse_pos):
+                    LEVEL_FILE = level_select_menu()
+                    load_level(LEVEL_FILE)
+                    button_clicked = True
 
-                        for item in loaded_tiles:
-                            # Handle dict format
-                            if isinstance(item, dict):
-                                tile_index = item.get("tile_index", 0)
-                                x = item.get("x", 0)
-                                y = item.get("y", 0)
-                                scale = item.get("scale", 1.0)
-                                placed_tiles.append((tile_index, x, y, scale))
-                            # Handle old list format: [tile_index, x, y, scale] or [x, y, tile_index]
-                            elif isinstance(item, list):
-                                if len(item) == 4:
-                                    tile_index, x, y, scale = item
-                                    placed_tiles.append((tile_index, x, y, scale))
-                                elif len(item) == 3:
-                                    x, y, tile_index = item
-                                    placed_tiles.append((tile_index, x, y, 1.0))
-                       # print(f"Loaded {len(placed_tiles)} tiles successfully")
-                    else:
-                        print("No level.json file found!")
+                # Only place tile if click is NOT on any button AND inside the grid
+                if not button_clicked and selected_tile_index is not None and mouse_pos[0] < SCREEN_WIDTH:
+                    grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
+                    grid_y = (mouse_pos[1]) // TILE_SIZE
+                    placed_tiles.append((selected_tile_index, grid_x, grid_y, tile_scale))
 
-
-            if event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
+            # ----------------- Right click -----------------
+            elif event.button == 3 and mouse_pos[0] < SCREEN_WIDTH:
                 grid_x = (mouse_pos[0] + scroll) // TILE_SIZE
-                grid_y = mouse_pos[1] // TILE_SIZE
+                grid_y = (mouse_pos[1]) // TILE_SIZE
                 placed_tiles = [
                     (t_index, x, y, s)
                     for t_index, x, y, s in placed_tiles
