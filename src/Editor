@@ -7,12 +7,12 @@ import csv
 
 pygame.init()
 
-# -------------------- Step 2: File loading --------------------
+# ----------------File loading --------------
 SHARED_FOLDER = Path("C:/Dev/orgsOfLangs/run-red-run")
 LEVELS_FOLDER = SHARED_FOLDER / "src" / "levels"  # separate folder for multiple levels
 LEVELS_FOLDER.mkdir(exist_ok=True)  # make sure it exists
 
-# -------------------- Step 3: Screen dynamics --------------------
+# ---------------Screen dynamics --------------
 clock = pygame.time.Clock()
 FPS = 60
 
@@ -124,6 +124,7 @@ def level_select_menu():
     menu_font = pygame.font.SysFont("arial", 48, bold=True)
     btn_font = pygame.font.SysFont("arial", 32, bold=True)
 
+    # When you want to add a new level put it here
     buttons = [
         ("Demo", "Demo.json"),
         ("Tutorial", "Tutorial"),
@@ -235,8 +236,8 @@ def load_level(level_file):
                     placed_tiles.append((tile_index, x, y, 1.0))
 
 # -------------------- Main program --------------------
-LEVEL_FILE = level_select_menu()  # ask user which level to edit
-load_level(LEVEL_FILE)           # load the selected level
+LEVEL_FILE = level_select_menu()  
+load_level(LEVEL_FILE)         
 
 run = True
 while run:
