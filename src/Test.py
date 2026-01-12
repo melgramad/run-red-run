@@ -1,4 +1,3 @@
-# This file is the brunt of our code which loads the level, has all the players and platform collision, the music, sfx, animations, ect.
 
 import sys
 import pygame
@@ -70,7 +69,7 @@ ASSETS_ROOT  = PROJECT_ROOT / "assets"
 ASSETS = PROJECT_ROOT / "assets" / "LevelEditor-main" / "LevelEditor-main" / "img"
 TILE_ASSETS = ASSETS / "tile"
 BG_ASSETS = ASSETS / "Background"
-LEVEL_FILE = PROJECT_ROOT / "src" / "level.json"
+#LEVEL_FILE = PROJECT_ROOT / "src" / "level.json"
 
 # Colors
 WHITE = (255, 255, 255)
@@ -669,7 +668,14 @@ class Wolf(pygame.sprite.Sprite):
 # ----------------------------
 # MAIN LOOP
 # ----------------------------
-def main():
+def main(selected_level="Demo.json"):
+    level_path = PROJECT_ROOT / "src" / "levels" / selected_level
+    if not level_path.exists():
+        raise FileNotFoundError(f"Level not found: {level_path}")
+
+    with open(level_path) as f:
+        level_data = json.load(f)
+
     wolf_timer = pygame.time.get_ticks()
     if sfx.get("wolfhowl") is None:
         sfx["wolfhowl"] = pygame.mixer.Sound(str(ASSETS_ROOT / "sfx" / "wolfhowl.wav"))
@@ -682,11 +688,9 @@ def main():
     start_time = pygame.time.get_ticks()
     stop_timer = False
 
-    if LEVEL_FILE.exists():
-        with open(LEVEL_FILE, "r") as f:
-            level_data = json.load(f)
-    else:
-        level_data = []
+    # --- Load selected level ---
+
+
 
     world_instance = World()
     world_instance.process_data(level_data)
@@ -741,7 +745,7 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN and dead and restart_button_rect and restart_button_rect.collidepoint(event.pos):
-                main()
+                main(selected_level)
                 return
             if not dead:
                 if event.type == pygame.KEYDOWN:
@@ -976,5 +980,3 @@ def main():
     sys.exit()
 
 
-if __name__ == "__main__":
-    main()
