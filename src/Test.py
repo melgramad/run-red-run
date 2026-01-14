@@ -50,7 +50,7 @@ def load_sfx(path):
 # ----------------------------
 # SETTINGS
 # ----------------------------
-SCREEN_WIDTH = 1000
+SCREEN_WIDTH = 1300
 SCREEN_HEIGHT = 740
 LOWER_MARGIN = 0
 SIDE_MARGIN = 300

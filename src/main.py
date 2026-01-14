@@ -10,7 +10,7 @@ import Test
 # ----------------------------
 # SETTINGS
 # ----------------------------
-SCREEN_WIDTH = 1100
+SCREEN_WIDTH = 1300
 SCREEN_HEIGHT = 740
 FPS = 60
 MENU_BG = (85, 22, 22)
